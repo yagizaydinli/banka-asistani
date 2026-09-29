@@ -1,11 +1,18 @@
 """RAG: soruya en yakın maddeleri bul, LLM'e ver, kaynak göstererek cevaplat.
 
-Kullanım:  python src/rag.py "Kartım çalındı, ne kadarından sorumluyum?"
+Kullanım:
+  python src/rag.py "Kartım çalındı, ne kadarından sorumluyum?"
+  python src/rag.py --model ollama:qwen3:4b "Kartım çalındı, ne kadarından sorumluyum?"
+
+Model adı "<servis>:<model>" biçiminde:
+  groq:openai/gpt-oss-120b   → Groq bulut API (varsayılan)
+  ollama:qwen3:4b            → bilgisayardaki Ollama (http://localhost:11434)
 """
 import re
 import sys
 import time
 
+import requests
 from dotenv import load_dotenv
 from groq import Groq, RateLimitError
 
@@ -13,7 +20,8 @@ from retriever import Retriever
 
 load_dotenv()
 
-MODEL = "openai/gpt-oss-120b"
+DEFAULT_MODEL = "groq:openai/gpt-oss-120b"
+OLLAMA_URL = "http://localhost:11434/api/chat"
 TOP_K = 5
 MAX_CHARS_PER_ARTICLE = 2500  # çok uzun maddeleri kırp → token (ve kota) tasarrufu
 
@@ -34,15 +42,11 @@ def build_context(articles: list[dict]) -> str:
     return "\n\n".join(parts)
 
 
-def ask_llm(client: Groq, question: str, context: str) -> tuple[str, dict]:
-    messages = [
-        {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": f"MADDELER:\n{context}\n\nSORU: {question}"},
-    ]
+def ask_groq(client: Groq, model: str, messages: list[dict]) -> tuple[str, dict]:
     for attempt in range(6):
         try:
             t0 = time.perf_counter()
-            resp = client.chat.completions.create(model=MODEL, messages=messages, temperature=0)
+            resp = client.chat.completions.create(model=model, messages=messages, temperature=0)
             usage = {
                 "sure_sn": round(time.perf_counter() - t0, 2),
                 "girdi_token": resp.usage.prompt_tokens,
@@ -57,21 +61,58 @@ def ask_llm(client: Groq, question: str, context: str) -> tuple[str, dict]:
     raise RuntimeError("Groq kotası aşıldı, sonra tekrar deneyin")
 
 
+def ask_ollama(model: str, messages: list[dict]) -> tuple[str, dict]:
+    t0 = time.perf_counter()
+    resp = requests.post(OLLAMA_URL, timeout=600, json={
+        "model": model,
+        "messages": messages,
+        "stream": False,
+        "think": False,  # qwen3 gibi "düşünen" modellerde düşünme adımını kapat → çok daha hızlı
+        "options": {
+            "temperature": 0,
+            "num_ctx": 6144,      # varsayılan bağlam penceresi 5 maddeye yetmeyebilir
+            "num_predict": 400,   # cevap en fazla 400 token; kontrolden çıkan üretimi keser
+        },
+    })
+    resp.raise_for_status()
+    data = resp.json()
+    usage = {
+        "sure_sn": round(time.perf_counter() - t0, 2),
+        "girdi_token": data.get("prompt_eval_count", 0),
+        "cikti_token": data.get("eval_count", 0),
+    }
+    return data["message"]["content"].strip(), usage
+
+
 def cited_ids(answer: str) -> list[str]:
     # gpt-oss bazen [..] yerine 【..】 kullanıyor; ikisini de tanı
     return re.findall(r"[\[【](\d{4}-m[\w-]+)[\]】]", answer)
 
 
 class RAG:
-    def __init__(self) -> None:
+    def __init__(self, model: str = DEFAULT_MODEL) -> None:
+        self.model = model
+        self.provider, self.model_name = model.split(":", 1)
         self.retriever = Retriever()
-        self.client = Groq(timeout=60)
+        self.client = Groq(timeout=60)  # hakem de bunu kullanıyor
+
+    def generate(self, messages: list[dict]) -> tuple[str, dict]:
+        if self.provider == "groq":
+            return ask_groq(self.client, self.model_name, messages)
+        if self.provider == "ollama":
+            return ask_ollama(self.model_name, messages)
+        raise ValueError(f"Bilinmeyen servis: {self.provider}")
 
     def answer(self, question: str) -> dict:
         articles = self.retriever.search(question, k=TOP_K)
-        text, usage = ask_llm(self.client, question, build_context(articles))
+        messages = [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": f"MADDELER:\n{build_context(articles)}\n\nSORU: {question}"},
+        ]
+        text, usage = self.generate(messages)
         return {
             "soru": question,
+            "model": self.model,
             "cevap": text,
             "bulunan": [a["id"] for a in articles],
             "atiflar": cited_ids(text),
@@ -79,10 +120,18 @@ class RAG:
         }
 
 
+def pop_model_arg(argv: list[str]) -> tuple[str, list[str]]:
+    if "--model" in argv:
+        i = argv.index("--model")
+        return argv[i + 1], argv[:i] + argv[i + 2:]
+    return DEFAULT_MODEL, argv
+
+
 if __name__ == "__main__":
-    question = " ".join(sys.argv[1:]) or "Bankam ben istemeden kredi kartı limitimi artırabilir mi?"
-    r = RAG().answer(question)
-    print(f"\nSORU: {r['soru']}\n")
+    model, args = pop_model_arg(sys.argv[1:])
+    question = " ".join(args) or "Bankam ben istemeden kredi kartı limitimi artırabilir mi?"
+    r = RAG(model).answer(question)
+    print(f"\nSORU: {r['soru']}  ({r['model']})\n")
     print(r["cevap"])
     print(f"\nBulunan maddeler: {r['bulunan']}")
     print(f"Süre: {r['sure_sn']} sn · token: {r['girdi_token']} girdi + {r['cikti_token']} çıktı")

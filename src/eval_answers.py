@@ -6,7 +6,8 @@
   - Sadakat (faithfulness): Cevaptaki her bilgi verilen maddelerde var mı? → ikinci bir LLM (hakem) karar verir
   - Doğru reddetme: Cevap maddelerde yoksa (kapsam dışı soru ya da retrieval kaçırdıysa) "cevap yok" dedi mi?
 
-Kullanım:  python src/eval_answers.py [etiket]     (sonuç: eval/sonuclar/rag_<etiket>.json)
+Kullanım:  python src/eval_answers.py <etiket> [--model ollama:qwen3:4b] [--rescore]
+           (sonuç: eval/sonuclar/rag_<etiket>.json; hakem her zaman Groq gpt-oss-20b)
 """
 import json
 import sys
@@ -15,7 +16,7 @@ from pathlib import Path
 
 from groq import RateLimitError
 
-from rag import RAG, build_context, cited_ids
+from rag import RAG, build_context, cited_ids, pop_model_arg
 
 ROOT = Path(__file__).resolve().parent.parent
 EVAL = ROOT / "eval"
@@ -66,9 +67,9 @@ def score(r: dict) -> dict:
     }
 
 
-def run(label: str) -> list[dict]:
+def run(model: str) -> list[dict]:
     questions = load_jsonl(EVAL / "retrieval_sorular.jsonl") + load_jsonl(EVAL / "kapsam_disi_sorular.jsonl")
-    rag = RAG()
+    rag = RAG(model)
     rows = []
     for i, q in enumerate(questions, 1):
         r = rag.answer(q["soru"])
@@ -85,18 +86,20 @@ def run(label: str) -> list[dict]:
 def main() -> None:
     # python src/eval_answers.py v1               → soruları LLM'e sorup ölçer
     # python src/eval_answers.py v1 --rescore     → LLM'e sormadan, kayıtlı cevapları yeniden puanlar
-    label = sys.argv[1] if len(sys.argv) > 1 else "v1"
+    model, args = pop_model_arg(sys.argv[1:])
+    label = args[0] if args and not args[0].startswith("--") else "v1"
     out = EVAL / "sonuclar" / f"rag_{label}.json"
     if "--rescore" in sys.argv:
         rows = [score(r) for r in json.loads(out.read_text(encoding="utf-8"))["sorular"]]
     else:
-        rows = run(label)
+        rows = run(model)
 
     answerable = [r for r in rows if r["cevaplanabilir"]]
     unanswerable = [r for r in rows if not r["cevaplanabilir"]]
     judged = [r for r in rows if r["sadik"] is not None]
     summary = {
         "etiket": label,
+        "model": rows[0].get("model", "groq:openai/gpt-oss-120b"),
         "soru_sayisi": len(rows),
         "cevaplanabilir": len(answerable),
         "atif_isabeti": round(sum(r["atif_isabetli"] for r in answerable) / max(len(answerable), 1), 3),
