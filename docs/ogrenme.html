@@ -173,6 +173,9 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
     <a href="#adim9"><span>§9</span>LLM'e cevap yazdırmak</a>
     <a href="#adim10"><span>§10</span>Cevapları ölçmek</a>
     <a href="#adim11"><span>§11</span>Cevap sonuçları</a>
+    <a href="#adim12"><span>§12</span>Git ve GitHub</a>
+    <a href="#adim13"><span>§13</span>Lokal model: Ollama</a>
+    <a href="#adim14"><span>§14</span>Büyük ve küçük model</a>
     <div class="group">Kavramlar ve yöntemler</div>
     <a href="#k1"><span>K1</span>Dil modelleri</a>
     <a href="#k2"><span>K2</span>Anlamla arama</a>
@@ -181,9 +184,9 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
     <a href="#k5"><span>K5</span>Mühendislik</a>
     <a href="#k6"><span>K6</span>Sıradaki kavramlar</a>
     <div class="group">Başvuru</div>
-    <a href="#sozluk"><span>§12</span>Sözlük</a>
-    <a href="#test"><span>§13</span>Kendini test et</a>
-    <a href="#calistir"><span>§14</span>Kendin çalıştır</a>
+    <a href="#sozluk"><span>§15</span>Sözlük</a>
+    <a href="#test"><span>§16</span>Kendini test et</a>
+    <a href="#calistir"><span>§17</span>Kendin çalıştır</a>
     <a href="#sirada"><span>→</span>Sırada ne var</a>
   </nav>
 </aside>
@@ -579,6 +582,147 @@ Yarın İstanbul'da hava nasıl olacak?
   </div>
 </section>
 
+<!-- §12 -->
+<section id="adim12" class="step">
+  <div class="num">12</div>
+  <div class="body">
+    <h2>Git ile versiyonlamak</h2>
+    <p>Proje artık birden fazla dosya ve deney içerdiği için <b>git</b> ile kayıt altına aldık. Git, dosyaların her kaydedilen halini (<b>commit</b>) saklar: bir şey bozulursa geri dönebilir, neyin ne zaman değiştiğini görebilirsin. GitHub ise bu kaydın internetteki kopyası.</p>
+<pre><code>git init -b main                 <span class="c"># klasörü git deposu yap, ana dal "main"</span>
+git add -A                       <span class="c"># tüm değişiklikleri kayda hazırla</span>
+git commit -m "İlk RAG hattı..."  <span class="c"># kaydı oluştur</span></code></pre>
+    <p>Commit'ten önce iki hazırlık yaptık:</p>
+    <ul>
+      <li><b><code>requirements.txt</code>:</b> Kullandığımız kütüphaneler, <b>tam sürüm numaralarıyla</b> (ör. <code>sentence-transformers==6.1.0</code>). Başka bir bilgisayarda <code>pip install -r requirements.txt</code> aynı ortamı kurar. Sürüm sabitlemezsen bir yıl sonra kütüphanenin yeni sürümü kodunu bozabilir.</li>
+      <li><b><code>.gitignore</code>:</b> Git'e girmeyecek dosyalar: <code>.venv</code> (1–2 GB, her bilgisayarda yeniden kurulur), <code>.env</code> (API anahtarı!) ve <code>data/index/</code> (script ile yeniden üretilebilir).</li>
+    </ul>
+    <div class="why"><span class="lbl">Güvenlik kontrolü</span>
+      <p>Commit'ten önce kaydedilecek tüm dosyalarda Groq anahtarlarının başladığı <code>gsk_</code> kalıbını aradık, hiçbirinde çıkmadı. Anahtar bir kere GitHub'a gitmişse, sonradan silmek yetmez: git geçmişinde kalır ve anahtarı iptal etmek gerekir.</p>
+    </div>
+    <p>Sonra GitHub'da <b>private</b> bir repo oluşturup kodu gönderdik (<b>push</b>). GitHub girişini sen yaptın (<code>gh auth login</code>), çünkü şifre girişi hep sende kalmalı. Repo, bu girişi kullanan tek bir komutla oluştu:</p>
+<pre><code>gh repo create banka-asistani --private --source . --remote origin --push</code></pre>
+    <p>Repo: <a href="https://github.com/yagizaydinli/banka-asistani">github.com/yagizaydinli/banka-asistani</a>. Şimdilik yalnızca sen görebilirsin; portföy hazır olunca public yapacağız.</p>
+  </div>
+</section>
+
+<!-- §13 -->
+<section id="adim13" class="step">
+  <div class="num">13</div>
+  <div class="body">
+    <h2>Lokal model: Ollama</h2>
+    <p>Şimdiye kadar cevapları Groq'un bulutundaki 120 milyar parametrelik bir model yazıyordu. Aynı işi <b>kendi laptopunda</b>, internetsiz ve ücretsiz çalışan küçük bir modelle yapmayı denedik. Bankalar gibi verisini dışarı göndermek istemeyen kurumlar için bu gerçek bir ihtiyaç.</p>
+    <h3>Kurulum</h3>
+<pre><code><span class="c"># Ollama: lokal model çalıştırma aracı (resmî GitHub sürümü, winget ile)</span>
+winget install --id Ollama.Ollama -e
+
+<span class="c"># model indir (~2.5 GB) ve listele</span>
+ollama pull qwen3:4b-instruct
+ollama list</code></pre>
+    <p>Ollama arka planda <code>http://localhost:11434</code> adresinde bir sunucu çalıştırır. Bizim kod ona tıpkı Groq'a yaptığı gibi HTTP isteği atar. <code>rag.py</code>'ye bir <code>--model</code> seçeneği ekledik:</p>
+<pre><code>python src\rag.py "soru"                                   <span class="c"># Groq, gpt-oss-120b (varsayılan)</span>
+python src\rag.py --model ollama:qwen3:4b-instruct "soru"  <span class="c"># laptoptaki model</span></code></pre>
+
+    <h3>Karşılaştığımız üç sorun (ve öğrettikleri)</h3>
+    <div class="miss">
+      <article>
+        <h3>1 · Yanlış model türü: “düşünen” model</h3>
+        <p class="rank">Tek soru 8 dakikayı geçti, 1.564 token üretip hâlâ bitmemişti</p>
+        <p class="fix"><code>qwen3:4b</code> etiketi artık Qwen'in <b>Thinking</b> sürümünü getiriyor. Bu modeller cevaptan önce uzun bir iç muhakeme yazar ve bu kapatılamaz. Güçlü GPU'da faydalı olabilir; bizim laptopta saniyede ~5 token'la dakikalar sürüyor. <b>Çözüm:</b> düşünmeyen <code>qwen3:4b-instruct</code> sürümü ve cevaba 400 token üst sınır (<code>num_predict</code>). Ders: model etiketinin arkasında tam olarak ne olduğunu kontrol et (<code>ollama show</code>, log'lar).</p>
+      </article>
+      <article>
+        <h3>2 · Model ekran kartına sığmadı</h3>
+        <p class="rank">Log: “offloaded 23/37 layers to GPU”</p>
+        <p class="fix">GTX 1650'nin 4 GB belleğinin yaklaşık 3,3 GB'ı boştu (Windows ekranı çizmek için de kullanıyor). Model ve bağlam bu alana sığmadığı için Ollama modelin 37 katmanından 23'ünü GPU'ya, kalanını ana belleğe (CPU) koydu. Model çalışıyor ama CPU'daki katmanlar her şeyi yavaşlatıyor. Buna <b>kısmi offloading</b> denir.</p>
+      </article>
+      <article>
+        <h3>3 · Sunucu kendiliğinden başlamadı</h3>
+        <p class="rank">“ollama server not ready” · bağlantı reddedildi</p>
+        <p class="fix">Kurulum sonrası uygulama birkaç kez yeniden başlayınca arka plandaki sunucu ayağa kalkmadı ve indirme komutu sessizce bekledi. Süreçleri kapatıp <code>ollama serve</code> ile elle başlatınca düzeldi. Ders: bir şey takıldığında önce <b>log dosyasına</b> bak (<code>%LOCALAPPDATA%\Ollama\server.log</code>). Üç sorunun üçü de log'dan çözüldü.</p>
+      </article>
+    </div>
+
+    <h3>İlk cevap</h3>
+<pre><code>SORU: Kartım çalındı, bildirmeden önce yapılan harcamaların ne kadarından sorumluyum?
+
+... yirmidört saat içinde gerçekleşen hukuka aykırı harcamalardan
+<b>yüzelli</b> Yeni Türk Lirası (₺) kadar sorumludur [5464-m12]. ...
+
+Süre: 46.78 sn · token: 1864 girdi + 128 çıktı</code></pre>
+    <div class="note"><span class="lbl">Dördüncü sorun: ölçüm yarıda kesildi</span>
+      <p>49 soruluk ölçüm 13. soruda, <b>hakem model</b> geçersiz JSON ürettiği için çöktü ve o ana kadarki cevaplar kayboldu. Script'e hata toleransı ve ara kayıt ekleyip yeniden başlattık. Ayrıntısı Kavramlar'da: <a href="#k-checkpoint">Ara kayıt</a>.</p>
+    </div>
+    <p>İlginç: 120B'lik model bu soruda “50 TL” diye yanılmıştı, 4B'lik küçük model doğru yazdı. Küçük model sayıyı metinden <b>kelimesi kelimesine</b> kopyaladı, büyük model ise yorumlayıp yanlış çevirdi. Tek bir örnek genelleme için yetmez, bu yüzden 49 sorunun hepsini ölçüyoruz.</p>
+  </div>
+</section>
+
+
+<!-- §14 -->
+<section id="adim14" class="step">
+  <div class="num">14</div>
+  <div class="body">
+    <h2>Büyük model ve küçük model</h2>
+    <p>Aynı 49 soru, aynı bulunan maddeler (iki çalıştırmada birebir aynı olduğunu kontrol ettik) ve aynı hakem. Değişen tek şey cevabı yazan model. Böylece farkın modelden geldiğinden emin olabiliyoruz; buna <b>kontrollü deney</b> denir.</p>
+    <div class="tbl"><table>
+      <thead><tr><th>Metrik</th><th class="n">gpt-oss-120b<br>Groq bulutu</th><th class="n">qwen3-4b<br>laptop</th><th>Yorum</th></tr></thead>
+      <tbody>
+        <tr><td>Model boyutu</td><td class="n">120 milyar</td><td class="n">4 milyar</td><td>30 kat fark</td></tr>
+        <tr><td>Atıf isabeti</td><td class="n">0.97</td><td class="n">0.97</td><td>Doğru maddeyi göstermede eşit</td></tr>
+        <tr><td>Sadakat (hakem)</td><td class="n">0.96</td><td class="n">0.90</td><td>Küçük model 5 cevapta maddede olmayan şey söyledi, büyük model 2'de</td></tr>
+        <tr><td>Doğru reddetme</td><td class="n">0.90</td><td class="n">0.80</td><td>Küçük model 2 kez bilmediği soruya cevap uydurdu</td></tr>
+        <tr><td>Gereksiz reddetme</td><td class="n">1</td><td class="n">0</td><td>Büyük model bir kez fazla temkinliydi</td></tr>
+        <tr><td>Ortalama süre</td><td class="n">2.9 sn</td><td class="n">34 sn</td><td>Laptop ~12 kat yavaş (10–100 sn arası)</td></tr>
+        <tr><td>Maliyet ve veri</td><td class="n">Ücretsiz kota, veri buluta gider</td><td class="n">Kota yok, veri laptopta kalır</td><td></td></tr>
+      </tbody>
+    </table></div>
+    <div class="bars" role="img" aria-label="Sadakat: gpt-oss-120b 0.96, qwen3-4b 0.90. Doğru reddetme: 0.90 ve 0.80">
+      <div class="eyebrow">Sadakat · cevap maddelere dayanıyor mu?</div>
+      <div class="bar"><span>120b</span><div class="track"><div class="fill" style="width:95.9%"></div></div><span class="v">0.96</span></div>
+      <div class="bar"><span>4b</span><div class="track"><div class="fill" style="width:89.8%"></div></div><span class="v">0.90</span></div>
+      <div class="eyebrow" style="margin-top:8px">Doğru reddetme · cevap elinde yokken “yok” dedi mi?</div>
+      <div class="bar"><span>120b</span><div class="track"><div class="fill" style="width:90%"></div></div><span class="v">0.90</span></div>
+      <div class="bar"><span>4b</span><div class="track"><div class="fill" style="width:80%"></div></div><span class="v">0.80</span></div>
+      <div class="axis"><span></span><div><span>0</span><span>0.5</span><span>1.0</span></div><span></span></div>
+    </div>
+
+    <h3>Küçük modelin hataları: anlamı ters çevirmek</h3>
+    <p>Skor farkı küçük görünüyor (0.96 ve 0.90), ama hataların <b>türü</b> daha ciddi. Büyük model bir sayıyı yanlış okumuştu; küçük model birkaç kez maddenin anlamını tersine çevirdi:</p>
+    <div class="miss">
+      <article>
+        <h3>Kanunun tersini söyledi</h3>
+        <p class="q">“Banka yurt içinde yeni şube açmak için izin almak zorunda mı?”</p>
+        <p class="rank">qwen3-4b: “Evet, Kurulun izni almak zorundadır [5411-m13]”</p>
+        <p class="fix">Madde 13 tam tersini söylüyor: şube açmak <b>serbest</b>, sadece Kuruma bildirmek yeterli. Kaynak doğru, cevap yanlış. Kullanıcı kaynağa bakmazsa yanlış bilgiyle kalır.</p>
+      </article>
+      <article>
+        <h3>Kendi cümlesiyle çelişti</h3>
+        <p class="q">“İndirim döneminde dükkan kredi kartı kabul etmeyebilir mi?”</p>
+        <p class="rank">qwen3-4b: “Hayır, indirim döneminde dükkan kredi kartı kabul etmeyebilir. Kanun gereği ... kabul etmek zorundadır.”</p>
+        <p class="fix">İlk cümle yanlış, ikinci cümle doğru. Küçük modeller olumsuz soru kalıplarında (“...-meyebilir mi?”) sık karışır.</p>
+      </article>
+      <article>
+        <h3>Bilmediği yerde uydurdu</h3>
+        <p class="q">“Kanunda kart hamili ne anlama geliyor?”</p>
+        <p class="rank">Tanımlar maddesi ilk 5'te değildi · büyük model “cevap yok” dedi, küçük model tanım uydurdu</p>
+        <p class="fix">Küçük model “cevap yoksa cevap yok de” kuralına daha zayıf uyuyor. Reddederken de istediğimiz kalıbı değil kendi cümlelerini kullandı.</p>
+      </article>
+    </div>
+    <p>İlginç tersine durum da oldu: “çalıntı kart” sorusunda büyük model “50 TL” diye yanılmıştı, küçük model “yüzelli TL”yi doğru yazdı. Tek örnek yanıltır, 49 soru genel resmi gösterir.</p>
+
+    <h3>Ölçüm aracımız yine yanıldı</h3>
+    <p>İlk puanlamada küçük modelin doğru reddetme skoru 0.60 çıktı. Cevaplara bakınca iki reddetmenin kaçırıldığını gördük: model “cevabı yok” yerine “hiçbir bilgi yoktur” ve “cevap verilemez” demişti. Reddetme kontrolünü genişlettik. İlk denemede kural bu sefer bir cevaptaki “açık bir hüküm yoktur” çekincesini reddetme sandı; “hüküm” kelimesini kuraldan çıkardık. İki modelin sonuçlarını, LLM'e tekrar sormadan, aynı son kuralla yeniden puanladık (<code>--rescore</code>). Skor 0.80 oldu.</p>
+    <div class="note"><span class="lbl">Ders</span>
+      <p>Kelime kalıbıyla (regex) “reddetti mi?” kararı vermek kırılgan: bir yönde gevşetince öbür yönde hata yapıyor. Daha sağlam yol bu kararı da hakem modele vermek. Hafta 2'de bunu deneyeceğiz. Asıl kural değişmedi: <b>sayıya güvenmeden önce örneklere bak</b>.</p>
+    </div>
+
+    <div class="why"><span class="lbl">Sonuç: hangisi ne zaman?</span>
+      <p>Bu projenin kalanında cevap modeli olarak <b>gpt-oss-120b</b> ile devam ediyoruz: hem daha isabetli hem 12 kat hızlı. Ama bu deney bir soruyu sayılarla cevaplamamızı sağladı: “Banka verisi dışarı çıkamıyorsa ne olur?” Cevap: laptop sınıfı bir donanımda 4B model kaynak göstermeyi aynı başarıyla yapıyor, ama anlamı ters çevirme riski artıyor ve kullanılabilir hızda değil. Gerçek bir kurum için doğru yol daha güçlü bir sunucuda 20–30B sınıfı açık bir model olurdu.</p>
+    </div>
+    <div class="note"><span class="lbl">Mülakat cümlesi</span>
+      <p>“Aynı retrieval ve aynı hakemle 120B bulut modeli ile 4B lokal modeli karşılaştırdım. Atıf isabeti eşitti, ama küçük modelin sadakati 0.96'dan 0.90'a düştü ve hataları daha tehlikeliydi: kaynağı doğru gösterip anlamı ters çeviriyordu. Gecikme de 3 saniyeden 34 saniyeye çıktı.”</p>
+    </div>
+  </div>
+</section>
+
 <!-- KAVRAMLAR -->
 <section id="kavramlar" class="stack part">
   <div class="eyebrow">Kavramlar ve yöntemler</div>
@@ -668,6 +812,64 @@ Yarın İstanbul'da hava nasıl olacak?
       </tbody>
     </table></div>
     <p>Halüsinasyonu tamamen yok etmek mümkün değil. Yapılabilecekler: iyi retrieval, sıkı prompt, “bilmiyorum” deme izni ve en önemlisi <b>ölçüp yakalamak</b>.</p>
+  </article>
+
+  <article class="concept" id="k-lokal">
+    <h3>Açık ağırlıklı model ve lokal çalıştırma</h3>
+    <p class="short">Parametreleri indirilebilen bir modeli kendi bilgisayarında ya da sunucunda çalıştırmak.</p>
+    <p>GPT-4 veya Claude gibi kapalı modellere sadece API ile ulaşılır. Qwen, Llama, Gemma, gpt-oss gibi <b>açık ağırlıklı</b> modellerin dosyası indirilebilir. Lokal çalıştırmanın artıları ve eksileri:</p>
+    <div class="tbl"><table>
+      <thead><tr><th>Artı</th><th>Eksi</th></tr></thead>
+      <tbody>
+        <tr><td>Veri dışarı çıkmaz (bankalar için kritik)</td><td>Donanım gerekir; küçük donanımda sadece küçük modeller</td></tr>
+        <tr><td>Kota yok, istek başına ücret yok</td><td>Küçük modeller genelde daha az isabetli</td></tr>
+        <tr><td>İnternet gerekmez, servis kapanma riski yok</td><td>Kurulum, güncelleme, izleme senin sorumluluğunda</td></tr>
+      </tbody>
+    </table></div>
+    <p><b>Ollama</b> bu işi kolaylaştıran bir araç: modeli indirir, donanıma göre yerleştirir ve bir HTTP API sunar. Arka planda <b>llama.cpp</b> adlı motoru kullanır. Log'lardaki <code>llama-server</code> satırları ondan geliyor.</p>
+  </article>
+
+  <article class="concept" id="k-quantization">
+    <h3>Quantization (nicemleme) ve GGUF</h3>
+    <p class="short">Model parametrelerini daha az bitle saklayarak modeli küçültmek.</p>
+    <p>Her parametre normalde 16 bitlik bir sayıdır. 4 milyar parametre × 2 bayt = <b>8 GB</b>; bizim 4 GB'lık ekran kartına sığmaz. Quantization her sayıyı daha kaba bir ölçekte, örneğin 4 bitle saklar: 4 milyar × 0,5 bayt ≈ 2 GB, ek yapılarla birlikte indirdiğimiz dosya <b>2,5 GB</b>.</p>
+    <p>Benzetme: Bir fotoğrafı 16 milyon renkten 16 renge indirmek gibi. Görüntü tanınır kalır ama ince ayrıntılar kaybolur. 4 bitte kalite kaybı çoğu iş için küçüktür; 2–3 bitte belirginleşir.</p>
+    <ul>
+      <li><b>GGUF:</b> llama.cpp/Ollama'nın kullandığı, quantize edilmiş model dosya formatı.</li>
+      <li><b>Q4_K_M</b> gibi adlar: 4 bit, belirli bir quantization yöntemi. Ollama varsayılan olarak genelde bu seviyeyi indirir.</li>
+      <li>Diğer formatlar: <b>AWQ</b>, <b>GPTQ</b>, <b>EXL2</b>. Bunlar daha çok güçlü GPU'lu sunucularda kullanılır.</li>
+    </ul>
+  </article>
+
+  <article class="concept" id="k-vram">
+    <h3>VRAM, katmanlar ve offloading</h3>
+    <p class="short">Modelin ekran kartı belleğine sığmayan kısmının ana belleğe (CPU) taşınması.</p>
+    <p>Bir LLM üst üste dizilmiş <b>katmanlardan</b> oluşur (qwen3 4B'de 37). Her token üretilirken tüm katmanlardan sırayla geçilir. GPU bu hesapları paralel yaptığı için çok hızlıdır, ama sadece kendi belleğindeki (<b>VRAM</b>) katmanlara erişebilir.</p>
+    <p>VRAM'e sadece model değil, bağlam için ayrılan <b>KV cache</b> de girer. Bizim log'da model için 1.576 MB ve 6.144 token'lık bağlam için 528 MB ayrıldı. Bağlam penceresini büyütmek VRAM'den yer. Sığmayan katmanlar CPU'da çalışır ve zincirin en yavaş halkası olur.</p>
+    <div class="why"><span class="lbl">Bizim projede</span>
+      <p>37 katmanın 23'ü GPU'da, 14'ü CPU'da. Laptopta bir 4B model “çalışıyor”, ama bir üründe kullanılacak hızda değil. Gerçek bir kurulumda ya daha büyük VRAM'li bir GPU, ya daha küçük bir model, ya da daha kısa bağlam gerekir.</p>
+    </div>
+  </article>
+
+  <article class="concept" id="k-hiz">
+    <h3>Prompt işleme ve üretim hızı</h3>
+    <p class="short">Bir LLM cevabı iki aşamada oluşur ve ikisinin hızı çok farklıdır.</p>
+    <ol>
+      <li><b>Prompt işleme (prefill):</b> Modele verilen metnin tamamı okunur. Token'lar paralel işlenebildiği için hızlıdır. Bizim laptopta ısındıktan sonra saniyede ~150 token.</li>
+      <li><b>Üretim (decode):</b> Cevap token token yazılır. Her yeni token bir öncekine bağlı olduğu için sıralıdır ve yavaştır. Bizim laptopta saniyede <b>~5 token</b>.</li>
+    </ol>
+    <p>Bu yüzden iki ölçü takip edilir: <b>TTFT</b> (time to first token, ilk kelimenin gelme süresi; kullanıcının “sistem çalışıyor” hissi) ve <b>tokens/sec</b> (yazma hızı). Groq gibi servisler özel donanımla saniyede yüzlerce token üretir. Bu yüzden 120B'lik model orada 3 saniyede, 4B'lik model laptopta dakikaya yakın sürede cevap veriyor.</p>
+    <p>Kısa cevap istemek (“en fazla 5 cümle”) ve <code>num_predict</code> ile üst sınır koymak özellikle yavaş donanımda önemli: her üretilen token doğrudan süreye ekleniyor.</p>
+  </article>
+
+  <article class="concept" id="k-thinking">
+    <h3>“Düşünen” (reasoning) ve instruct modeller</h3>
+    <p class="short">Bazı modeller cevaptan önce uzun bir iç muhakeme metni üretir; bazıları doğrudan cevaplar.</p>
+    <ul>
+      <li><b>Instruct:</b> Talimatı alır, doğrudan cevap yazar. Hızlı ve tahmin edilebilir.</li>
+      <li><b>Thinking / reasoning:</b> Önce adım adım düşünür, sonra cevap yazar. Matematik ve çok adımlı problemlerde daha iyi, ama yüzlerce ya da binlerce ekstra token harcar.</li>
+    </ul>
+    <p>gpt-oss da bir reasoning modeli, ama Groq'un hızında bu fark hissedilmiyor. Laptopta ise aynı yaklaşım bir soruyu 8+ dakikaya çıkardı. Doğru model seçimi donanıma ve işe bağlı: “maddeden bilgi aktar” gibi basit bir iş için düşünme gereksiz.</p>
   </article>
 </section>
 
@@ -1003,6 +1205,43 @@ Yarın İstanbul'da hava nasıl olacak?
     <p class="short">Aynı adımları izleyen herkesin aynı sonuca ulaşabilmesi.</p>
     <p>Bu projede bunu sağlayan kararlar: ham veri (<code>data/raw</code>) hiç değiştirilmiyor, her ara çıktı bir script ile üretiliyor, <code>temperature=0</code>, her deneyin sonucu etiketle kaydediliyor (<code>rag_v1.json</code>). Mülakatta “sonuçlarını nasıl doğruladın?” sorusunun cevabı bu.</p>
   </article>
+
+  <article class="concept" id="k-git">
+    <h3>Git, commit ve .gitignore</h3>
+    <p class="short">Dosyaların değişiklik geçmişini tutan versiyon kontrol sistemi.</p>
+    <ul>
+      <li><b>Commit:</b> Projenin belirli bir andaki fotoğrafı ve ne değiştiğini anlatan bir mesaj. İyi commit mesajı “ne” ve “neden”i söyler.</li>
+      <li><b>Branch (dal):</b> Ana koddan ayrılıp deney yapabileceğin paralel bir çizgi. Hafta 2'deki her deneyi ayrı dalda yapabiliriz.</li>
+      <li><b>.gitignore:</b> Git'in görmezden geleceği dosyalar. Sırlar (<code>.env</code>), büyük ve yeniden üretilebilir dosyalar (<code>.venv</code>, indeks).</li>
+      <li><b>Remote (GitHub):</b> Deponun internetteki kopyası. Yedek, paylaşım ve portföy.</li>
+    </ul>
+    <p>AI projelerinde ek bir kural: <b>kod ile birlikte eval sonuçlarını da commit'le</b>. Bizim <code>eval/sonuclar/</code> klasörü git'te. Böylece “v1'de sadakat 0.96'ydı, bu değişiklikten sonra 0.93'e düştü” gibi karşılaştırmaları geçmişe bakarak yapabiliriz.</p>
+  </article>
+
+  <article class="concept" id="k-surum">
+    <h3>Sürüm sabitleme (version pinning)</h3>
+    <p class="short">Kullanılan kütüphanelerin tam sürüm numaralarını kaydetmek.</p>
+    <p><code>requirements.txt</code>'te <code>sentence-transformers==6.1.0</code> yazıyor, <code>sentence-transformers</code> değil. AI kütüphaneleri çok hızlı değişiyor ve yeni bir sürüm varsayılan davranışı, fonksiyon adlarını ya da sonuçları değiştirebilir. Sürüm sabitlemek hem tekrarlanabilirliğin hem de “benim bilgisayarımda çalışıyordu” sorununun ilacı.</p>
+    <p>Aynı mantık modeller için de geçerli: <code>qwen3:4b</code> etiketi zamanla farklı bir modeli gösterebilir (bizim başımıza geldi). Ciddi projelerde model sürümü de tam adıyla kaydedilir.</p>
+  </article>
+
+  <article class="concept" id="k-checkpoint">
+    <h3>Ara kayıt (checkpointing) ve hata toleransı</h3>
+    <p class="short">Uzun süren bir işin ilerlemesini adım adım diske yazmak; bir hata tüm işi silmesin.</p>
+    <p>Lokal model ölçümü 13. soruda durdu: hakem model bir kez geçersiz JSON üretti, Groq bunu <code>400 json_validate_failed</code> hatası olarak döndürdü ve bizim kod bu hatayı beklemiyordu. Sonuçlar sadece en sonda diske yazıldığı için 13 cevap, yani yaklaşık 15 dakikalık iş kayboldu.</p>
+    <p>İki düzeltme yaptık:</p>
+    <ul>
+      <li><b>Hatayı yerel tut:</b> Hakem geçersiz cevap verirse bir kez daha deniyor, yine olmazsa o soruyu “karar yok” (<code>sadik: null</code>) olarak işaretleyip devam ediyor. Özet skor, kararı olan sorular üzerinden hesaplanıyor.</li>
+      <li><b>Ara kayıt:</b> Her cevap anında <code>rag_&lt;etiket&gt;.partial.jsonl</code> dosyasına ekleniyor. Script yeniden çalıştırılınca bu dosyayı okuyup sadece kalan soruları soruyor. Ölçüm bitince ara dosya siliniyor.</li>
+    </ul>
+    <p>Genel kural: dışarıya bağımlı (API, ağ, başka bir model) ve uzun süren her iş bir noktada yarıda kesilecektir. İşi <b>kaldığı yerden devam edebilir</b> şekilde tasarlamak baştan az emek, sonradan çok zaman kazandırır. Model eğitimi (Hafta 6) de aynı mantıkla checkpoint'ler kaydeder.</p>
+  </article>
+
+  <article class="concept" id="k-log">
+    <h3>Log okumak</h3>
+    <p class="short">Programların çalışırken yazdığı kayıtlardan sorunu teşhis etmek.</p>
+    <p>Ollama sorunlarının üçü de log'da açıkça yazıyordu: <code>general.name = Qwen3 4B Thinking</code> (yanlış model), <code>offloaded 23/37 layers to GPU</code> (belleğe sığmama), <code>n_gen = 1564, tg = 4.22 t/s</code> (üretim hızı ve uzunluğu), <code>server not ready</code> (sunucu başlamamış). Bir şey takıldığında tahmin yürütmek yerine önce log'a bakmak, mühendislikte en çok zaman kazandıran alışkanlıklardan biri.</p>
+  </article>
 </section>
 
 <!-- K6 -->
@@ -1023,9 +1262,9 @@ Yarın İstanbul'da hava nasıl olacak?
   </dl>
 </section>
 
-<!-- §12 -->
+<!-- §15 -->
 <section id="sozluk" class="stack">
-  <div class="eyebrow">§12</div>
+  <div class="eyebrow">§15</div>
   <h2>Sözlük</h2>
   <p>Hızlı başvuru için tek satırlık tanımlar. Ayrıntılı açıklamalar <a href="#k1">Kavramlar ve yöntemler</a> bölümünde.</p>
   <dl class="gloss">
@@ -1056,13 +1295,23 @@ Yarın İstanbul'da hava nasıl olacak?
     <dt>Faithfulness (sadakat)</dt><dd>Cevaptaki her bilginin verilen kaynaklarda gerçekten yazması.</dd>
     <dt>LLM-as-judge</dt><dd>Bir LLM'in cevabını başka bir LLM'e puanlatmak.</dd>
     <dt>Reddetme (abstain)</dt><dd>Kaynaklarda cevap yokken uydurmak yerine “bilmiyorum” demek.</dd>
+    <dt>Ollama</dt><dd>Açık modelleri bilgisayarda indirip çalıştıran, HTTP API sunan araç.</dd>
+    <dt>Quantization</dt><dd>Model parametrelerini daha az bitle saklayıp modeli küçültmek (ör. 16 bit → 4 bit).</dd>
+    <dt>GGUF</dt><dd>Ollama/llama.cpp'nin quantize model dosya formatı.</dd>
+    <dt>VRAM</dt><dd>Ekran kartının belleği; modelin hızlı çalışan kısmı buraya sığmalı.</dd>
+    <dt>Offloading</dt><dd>VRAM'e sığmayan model katmanlarının CPU'da çalıştırılması.</dd>
+    <dt>Tokens/sec, TTFT</dt><dd>Üretim hızı ve ilk token'ın gelme süresi.</dd>
+    <dt>Instruct / thinking</dt><dd>Doğrudan cevaplayan model / cevaptan önce uzun muhakeme yazan model.</dd>
+    <dt>Kontrollü deney</dt><dd>Tek bir şeyi değiştirip gerisini sabit tutarak farkın kaynağından emin olmak.</dd>
+    <dt>Commit / push</dt><dd>Git'te bir kayıt oluşturmak / kayıtları GitHub'a göndermek.</dd>
+    <dt>Checkpoint</dt><dd>Uzun bir işin ara kaydı; kesilirse kaldığı yerden devam edilir.</dd>
     <dt>Prompt injection</dt><dd>Kullanıcının soruya gizlediği talimatla modelin kurallarını deldirmeye çalışması.</dd>
   </dl>
 </section>
 
-<!-- §13 -->
+<!-- §16 -->
 <section id="test" class="stack">
-  <div class="eyebrow">§13</div>
+  <div class="eyebrow">§16</div>
   <h2>Kendini test et</h2>
   <p>Önce kendi cümlenle cevapla, sonra aç.</p>
   <div>
@@ -1082,14 +1331,22 @@ Yarın İstanbul'da hava nasıl olacak?
       <p>Atıf isabeti sadece doğru maddeyi gösterip göstermediğine bakar, içeriği doğru okuyup okumadığına bakmaz. “150 TL” yerine “50 TL” yazan cevap doğru maddeyi gösterdi. Bu yüzden ayrıca sadakat ölçüyoruz.</p></details>
     <details><summary>Hakem model neden cevabı üreten modelden farklı?</summary>
       <p>Aynı model kendi yazdığını doğru bulmaya eğilimli olabilir. Farklı bir model daha bağımsız bir göz. Küçük model seçmek de maliyeti düşürür, çünkü hakem her cevap için bir kere daha çağrılır.</p></details>
+    <details><summary>4 milyar parametrelik model neden 8 GB değil de 2,5 GB?</summary>
+      <p>Quantization: parametreler 16 bit yerine yaklaşık 4 bitle saklanıyor. 4 milyar × 0,5 bayt ≈ 2 GB, üstüne bazı ek yapılar. Biraz kalite kaybı karşılığında 4 kat küçülme.</p></details>
+    <details><summary>Laptopta cevap neden 34 saniye, Groq'ta 3 saniye sürüyor?</summary>
+      <p>Model 4 GB VRAM'e tam sığmadı, 37 katmanın 14'ü CPU'da çalışıyor. Cevabı token token üretmek (decode) sıralı bir iş ve laptopta saniyede ~5 token. Groq özel donanımla saniyede yüzlerce token üretiyor.</p></details>
+    <details><summary>Küçük modelin atıf isabeti büyük modelle aynıyken neden daha riskli?</summary>
+      <p>Doğru maddeyi gösteriyor ama bazen içeriği ters çeviriyor (“şube açmak için izin gerekir”). Atıf doğru olunca kullanıcı cevaba daha çok güvenir. Atıf isabeti tek başına yetmez; sadakat ölçülmeli.</p></details>
+    <details><summary>Neden iki modeli aynı hakem ve aynı bulunan maddelerle ölçtük?</summary>
+      <p>Farkın gerçekten cevap modelinden geldiğini bilmek için. Hakem ya da retrieval da değişseydi hangi değişikliğin etkisini gördüğümüzü ayıramazdık.</p></details>
     <details><summary>“Devlet güvencesi” sorusundaki hata neden en tehlikelisi?</summary>
       <p>Cevap kendinden emin ve kaynak gösteriyor, ama kaynak cevabı desteklemiyor. Kullanıcı sisteme güvenir. Doğruluğunu kontrol etmek isterse de alakasız bir madde görür. Açıkça “bilmiyorum” demek bundan çok daha iyidir.</p></details>
   </div>
 </section>
 
-<!-- §14 -->
+<!-- §17 -->
 <section id="calistir" class="stack">
-  <div class="eyebrow">§14</div>
+  <div class="eyebrow">§17</div>
   <h2>Kendin çalıştır</h2>
   <p>PowerShell'de, proje klasöründe:</p>
 <pre><code>cd D:\Projects\banka-asistani
@@ -1111,7 +1368,11 @@ python src\rag.py "Adresim değişti, bankaya bildirmek için kaç günüm var?"
 python src\eval_answers.py v1
 
 <span class="c"># 6) LLM'e sormadan, kayıtlı cevapları yeniden puanla</span>
-python src\eval_answers.py v1 --rescore</code></pre>
+python src\eval_answers.py v1 --rescore
+
+<span class="c"># 7) lokal model (Ollama açık olmalı): tek soru ve 49 soruluk ölçüm (~30 dk)</span>
+python src\rag.py --model ollama:qwen3:4b-instruct "Adresim değişti, kaç günüm var?"
+python src\eval_answers.py qwen3-4b --model ollama:qwen3:4b-instruct</code></pre>
   <div class="why"><span class="lbl">Kendi başına dene</span>
     <p><code>eval\retrieval_sorular.jsonl</code> dosyasına kendi sorunu ekle, e5-small ile çalıştır, bulup bulamadığına <code>eval\sonuclar\embedding_e5-small.json</code> içindeki <code>kacirilanlar</code> listesinden bak. Ya da <code>rag.py</code>'ye kendi sorunu sor ve cevabı kanunla karşılaştır: hakem modelin göremediği bir hata bulabilir misin?</p>
   </div>
@@ -1119,16 +1380,15 @@ python src\eval_answers.py v1 --rescore</code></pre>
 
 <section id="sirada" class="stack">
   <div class="eyebrow">Sırada</div>
-  <h2>Hafta 1'in kalanı</h2>
-  <ul>
-    <li>Ollama kurulumu ve küçük bir lokal modelle (ör. 4B) aynı 49 soruyu ölçmek: büyük ve küçük model farkını sayıyla görmek.</li>
-    <li>Projeyi git ile versiyonlamak ve GitHub'a koymak.</li>
-  </ul>
+  <h2>Hafta 1 tamamlandı</h2>
+  <p>Temel RAG hattı kuruldu, retrieval ve cevap kalitesi ölçüldü, bulut ve lokal model karşılaştırıldı, proje GitHub'da.</p>
   <h2>Hafta 2</h2>
   <ul>
     <li>Hybrid search (BM25 + embedding) → madde numarası soruları.</li>
     <li>Query rewriting → “devlet güvencesi” gibi kelime uçurumu soruları.</li>
     <li>Reranker ve fıkra bazlı chunking → her birinin etkisini aynı eval setiyle ölçmek.</li>
+    <li>Reddetme kararını regex yerine hakem modele vermek.</li>
+    <li>Eval setini büyütmek ve ayar yaparken bakmayacağımız bir “sınav” bölümü ayırmak.</li>
   </ul>
 </section>
 

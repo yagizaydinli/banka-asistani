@@ -1,6 +1,7 @@
 {
   "ozet": {
     "etiket": "v1",
+    "model": "groq:openai/gpt-oss-120b",
     "soru_sayisi": 49,
     "cevaplanabilir": 39,
     "atif_isabeti": 0.974,
