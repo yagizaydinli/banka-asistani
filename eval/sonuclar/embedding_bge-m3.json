@@ -1,0 +1,70 @@
+{
+  "model": "bge-m3",
+  "recall@1": 0.682,
+  "recall@5": 0.886,
+  "mrr": 0.777,
+  "indeksleme_sn": 644.7,
+  "soru_basina_ms": 164.8,
+  "kacirilanlar": [
+    {
+      "soru": "Kredi kartımı iptal ettirmek istiyorum, bu hakkım var mı?",
+      "gold": [
+        "5464-m25"
+      ],
+      "rank": 7,
+      "top3": [
+        "5464-m5",
+        "5464-m17",
+        "5464-m11"
+      ]
+    },
+    {
+      "soru": "Kanunda kart hamili ne anlama geliyor?",
+      "gold": [
+        "5464-m3"
+      ],
+      "rank": 16,
+      "top3": [
+        "5464-m2",
+        "5464-m15",
+        "5464-m16"
+      ]
+    },
+    {
+      "soru": "5464 sayılı kanunun 22. maddesi ne düzenliyor?",
+      "gold": [
+        "5464-m22"
+      ],
+      "rank": 28,
+      "top3": [
+        "5464-m50",
+        "5464-m3",
+        "5464-m27"
+      ]
+    },
+    {
+      "soru": "Bankadaki param devlet güvencesinde mi?",
+      "gold": [
+        "5411-m63"
+      ],
+      "rank": 11,
+      "top3": [
+        "5411-m98",
+        "5411-m93",
+        "5411-m3"
+      ]
+    },
+    {
+      "soru": "Bankacılık Kanunu 54. madde neyi düzenler?",
+      "gold": [
+        "5411-m54"
+      ],
+      "rank": 75,
+      "top3": [
+        "5411-mgecici-3",
+        "5411-m55",
+        "5411-m77"
+      ]
+    }
+  ]
+}

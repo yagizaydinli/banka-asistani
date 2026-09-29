@@ -1,0 +1,12 @@
+# torch'u önce CPU sürümüyle kur:
+#   pip install torch==2.14.0 --index-url https://download.pytorch.org/whl/cpu
+# sonra:
+#   pip install -r requirements.txt
+sentence-transformers==6.1.0
+transformers==5.17.0
+numpy==2.5.3
+pypdf==6.19.0
+groq==1.7.0
+python-dotenv==1.2.3
+requests==2.34.2
+beautifulsoup4==4.15.0

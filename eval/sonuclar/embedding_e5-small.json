@@ -1,0 +1,130 @@
+{
+  "model": "e5-small",
+  "recall@1": 0.636,
+  "recall@5": 0.773,
+  "mrr": 0.699,
+  "indeksleme_sn": 61.3,
+  "soru_basina_ms": 16.7,
+  "kacirilanlar": [
+    {
+      "soru": "Hiç başvurmadığım halde bana kredi kartı gönderdiler, bu yasal mı?",
+      "gold": [
+        "5464-m8"
+      ],
+      "rank": 17,
+      "top3": [
+        "5464-mgecici-5",
+        "5464-m34",
+        "5464-m38"
+      ]
+    },
+    {
+      "soru": "Bankaya yaptığım şikâyete kaç gün içinde cevap vermeleri gerekiyor?",
+      "gold": [
+        "5464-m11"
+      ],
+      "rank": 8,
+      "top3": [
+        "5411-m166",
+        "5411-m160",
+        "5411-mgecici-14"
+      ]
+    },
+    {
+      "soru": "Adresim değişti, bankaya bildirmek için kaç günüm var?",
+      "gold": [
+        "5464-m16"
+      ],
+      "rank": 27,
+      "top3": [
+        "5411-m168",
+        "5464-mgecici-2",
+        "5411-m16"
+      ]
+    },
+    {
+      "soru": "Kredi kartımı iptal ettirmek istiyorum, bu hakkım var mı?",
+      "gold": [
+        "5464-m25"
+      ],
+      "rank": 12,
+      "top3": [
+        "5464-m42",
+        "5464-mgecici-4",
+        "5464-m38"
+      ]
+    },
+    {
+      "soru": "Banka ile anlaşmazlıkta işlemin hatasız kaydedildiğini kim ispat etmeli?",
+      "gold": [
+        "5464-m32"
+      ],
+      "rank": 14,
+      "top3": [
+        "5411-m155",
+        "5411-m157",
+        "5411-mgecici-34"
+      ]
+    },
+    {
+      "soru": "Kanunda kart hamili ne anlama geliyor?",
+      "gold": [
+        "5464-m3"
+      ],
+      "rank": 12,
+      "top3": [
+        "5464-m15",
+        "5464-m16",
+        "5464-m45"
+      ]
+    },
+    {
+      "soru": "Bankadaki param devlet güvencesinde mi?",
+      "gold": [
+        "5411-m63"
+      ],
+      "rank": 200,
+      "top3": [
+        "5411-mgecici-18",
+        "5411-m168",
+        "5411-m1"
+      ]
+    },
+    {
+      "soru": "Bankadaki hesabıma on yıl hiç dokunmazsam ne olur?",
+      "gold": [
+        "5411-m62"
+      ],
+      "rank": 18,
+      "top3": [
+        "5411-m156",
+        "5411-mgecici-9",
+        "5411-mgecici-34"
+      ]
+    },
+    {
+      "soru": "Bankaların alacağı ücret ve komisyonların üst sınırını kim belirler?",
+      "gold": [
+        "5411-m144"
+      ],
+      "rank": 136,
+      "top3": [
+        "5411-m24",
+        "5411-m100",
+        "5411-m102"
+      ]
+    },
+    {
+      "soru": "Bankacılık Kanunu 54. madde neyi düzenler?",
+      "gold": [
+        "5411-m54"
+      ],
+      "rank": 20,
+      "top3": [
+        "5411-m1",
+        "5411-m55",
+        "5411-m34"
+      ]
+    }
+  ]
+}

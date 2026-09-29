@@ -1,0 +1,94 @@
+{
+  "model": "e5-base",
+  "recall@1": 0.636,
+  "recall@5": 0.841,
+  "mrr": 0.72,
+  "indeksleme_sn": 183.1,
+  "soru_basina_ms": 53.7,
+  "kacirilanlar": [
+    {
+      "soru": "Kredi kartımı iptal ettirmek istiyorum, bu hakkım var mı?",
+      "gold": [
+        "5464-m25"
+      ],
+      "rank": 14,
+      "top3": [
+        "5464-m5",
+        "5464-m11",
+        "5464-m8"
+      ]
+    },
+    {
+      "soru": "Kanunda kart hamili ne anlama geliyor?",
+      "gold": [
+        "5464-m3"
+      ],
+      "rank": 8,
+      "top3": [
+        "5464-m15",
+        "5464-m44",
+        "5464-m25"
+      ]
+    },
+    {
+      "soru": "5464 sayılı kanunun 22. maddesi ne düzenliyor?",
+      "gold": [
+        "5464-m22"
+      ],
+      "rank": 16,
+      "top3": [
+        "5464-m27",
+        "5464-m50",
+        "5464-m2"
+      ]
+    },
+    {
+      "soru": "Bankadaki param devlet güvencesinde mi?",
+      "gold": [
+        "5411-m63"
+      ],
+      "rank": 208,
+      "top3": [
+        "5411-m82",
+        "5411-m123",
+        "5411-m52"
+      ]
+    },
+    {
+      "soru": "Bankadaki hesabıma on yıl hiç dokunmazsam ne olur?",
+      "gold": [
+        "5411-m62"
+      ],
+      "rank": 25,
+      "top3": [
+        "5411-m42",
+        "5411-m150",
+        "5411-m156"
+      ]
+    },
+    {
+      "soru": "Bankam kredi sözleşmemin bir kopyasını bana vermek zorunda mı?",
+      "gold": [
+        "5411-m76"
+      ],
+      "rank": 19,
+      "top3": [
+        "5411-m52",
+        "5464-m17",
+        "5464-m23"
+      ]
+    },
+    {
+      "soru": "Bankacılık Kanunu 54. madde neyi düzenler?",
+      "gold": [
+        "5411-m54"
+      ],
+      "rank": 108,
+      "top3": [
+        "5411-m1",
+        "5411-m2",
+        "5411-m76"
+      ]
+    }
+  ]
+}
