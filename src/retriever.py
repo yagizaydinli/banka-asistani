@@ -9,6 +9,8 @@ from pathlib import Path
 import numpy as np
 from sentence_transformers import SentenceTransformer
 
+from hybrid import BM25Search, rrf, with_filter
+
 ROOT = Path(__file__).resolve().parent.parent
 CHUNKS = ROOT / "data" / "chunks.jsonl"
 INDEX_DIR = ROOT / "data" / "index"
@@ -25,6 +27,7 @@ class Retriever:
         self.model = SentenceTransformer(MODEL_ID, device="cpu")
         self.model.max_seq_length = 512
         self.vecs = self._load_or_build()
+        self._bm25: BM25Search | None = None
 
     def _load_or_build(self) -> np.ndarray:
         vec_path = INDEX_DIR / "bge-m3.npy"
@@ -41,8 +44,14 @@ class Retriever:
         ids_path.write_text(json.dumps(ids), encoding="utf-8")
         return vecs
 
-    def search(self, question: str, k: int = 5) -> list[dict]:
+    def search(self, question: str, k: int = 5, mode: str = "dense") -> list[dict]:
+        """mode: "dense" (sadece embedding) veya "hybrid" (embedding + BM25 + madde filtresi)"""
         q = self.model.encode([question], normalize_embeddings=True)[0]
-        scores = self.vecs @ q
-        top = np.argsort(-scores)[:k]
-        return [{**self.chunks[i], "score": float(scores[i])} for i in top]
+        order = np.argsort(-(self.vecs @ q))
+        ids = [self.chunks[i]["id"] for i in order]
+        if mode == "hybrid":
+            if self._bm25 is None:
+                self._bm25 = BM25Search(self.chunks, stem=5)
+            ids = with_filter(question, rrf([ids, self._bm25.rank(question)]))
+        by_id = {c["id"]: c for c in self.chunks}
+        return [by_id[i] for i in ids[:k]]

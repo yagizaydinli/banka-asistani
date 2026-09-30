@@ -6,7 +6,7 @@
   - Sadakat (faithfulness): Cevaptaki her bilgi verilen maddelerde var mı? → ikinci bir LLM (hakem) karar verir
   - Doğru reddetme: Cevap maddelerde yoksa (kapsam dışı soru ya da retrieval kaçırdıysa) "cevap yok" dedi mi?
 
-Kullanım:  python src/eval_answers.py <etiket> [--model ollama:qwen3:4b] [--rescore]
+Kullanım:  python src/eval_answers.py <etiket> [--model ollama:qwen3:4b-instruct] [--retrieval hybrid] [--rescore]
            (sonuç: eval/sonuclar/rag_<etiket>.json; hakem her zaman Groq gpt-oss-20b)
 """
 import json
@@ -17,7 +17,7 @@ from pathlib import Path
 
 from groq import BadRequestError, RateLimitError
 
-from rag import RAG, build_context, cited_ids, pop_model_arg
+from rag import DEFAULT_MODEL, DEFAULT_RETRIEVAL, RAG, build_context, cited_ids, pop_arg
 
 ROOT = Path(__file__).resolve().parent.parent
 EVAL = ROOT / "eval"
@@ -81,13 +81,13 @@ def score(r: dict) -> dict:
     }
 
 
-def run(model: str, partial: Path) -> list[dict]:
+def run(model: str, retrieval: str, partial: Path) -> list[dict]:
     questions = load_jsonl(EVAL / "retrieval_sorular.jsonl") + load_jsonl(EVAL / "kapsam_disi_sorular.jsonl")
     # Ara kayıt: her cevap anında diske yazılır; ölçüm yarıda kesilirse kaldığı yerden devam eder
     done = {r["soru"]: r for r in load_jsonl(partial)} if partial.exists() else {}
     if done:
         print(f"{len(done)} soru ara kayıttan okundu, kalanlar soruluyor", flush=True)
-    rag = RAG(model)
+    rag = RAG(model, retrieval)
     rows = []
     for i, q in enumerate(questions, 1):
         if q["soru"] in done:
@@ -109,14 +109,15 @@ def run(model: str, partial: Path) -> list[dict]:
 def main() -> None:
     # python src/eval_answers.py v1               → soruları LLM'e sorup ölçer
     # python src/eval_answers.py v1 --rescore     → LLM'e sormadan, kayıtlı cevapları yeniden puanlar
-    model, args = pop_model_arg(sys.argv[1:])
+    model, args = pop_arg(sys.argv[1:], "--model", DEFAULT_MODEL)
+    retrieval, args = pop_arg(args, "--retrieval", DEFAULT_RETRIEVAL)
     label = args[0] if args and not args[0].startswith("--") else "v1"
     out = EVAL / "sonuclar" / f"rag_{label}.json"
     if "--rescore" in sys.argv:
         rows = [score(r) for r in json.loads(out.read_text(encoding="utf-8"))["sorular"]]
     else:
         partial = EVAL / "sonuclar" / f"rag_{label}.partial.jsonl"
-        rows = run(model, partial)
+        rows = run(model, retrieval, partial)
 
     answerable = [r for r in rows if r["cevaplanabilir"]]
     unanswerable = [r for r in rows if not r["cevaplanabilir"]]
@@ -124,6 +125,7 @@ def main() -> None:
     summary = {
         "etiket": label,
         "model": rows[0].get("model", "groq:openai/gpt-oss-120b"),
+        "retrieval": rows[0].get("retrieval", "dense"),
         "soru_sayisi": len(rows),
         "cevaplanabilir": len(answerable),
         "atif_isabeti": round(sum(r["atif_isabetli"] for r in answerable) / max(len(answerable), 1), 3),

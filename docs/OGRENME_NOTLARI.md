@@ -162,6 +162,7 @@ Her adımda ne yaptığımızın kısa kaydı.
 | 2026-09-29 | 44 soruluk retrieval eval seti yazıldı, 3 embedding modeli karşılaştırıldı | bge-m3 en iyi (Recall@5 = 0.89) ama en yavaş; hatalar 3 türe ayrıldı |
 | 2026-09-29 | RAG cevap üretimi (gpt-oss-120b, Groq) + 4 metrikli cevap eval'i (hakem: gpt-oss-20b) | Atıf 0.97, sadakat 0.96, reddetme 0.90; "150→50" ve "kendi ezberinden cevap" hataları. Ayrıntı: docs/ogrenme.html §9–§11 |
 | 2026-09-29 | Git + private GitHub repo; Ollama ile lokal qwen3-4b-instruct; eval'e ara kayıt ve hata toleransı | 4B: atıf 0.97, sadakat 0.90, reddetme 0.80, 34 sn/soru (120B: 0.97 / 0.96 / 0.90 / 2.9 sn). Ayrıntı: §12–§14 |
+| 2026-09-30 | Hafta 2: BM25 (Türkçe ilk-5-harf kök kesme), RRF hybrid, madde numarası filtresi; hybrid varsayılan | R@5 0.89 → 0.93. Cevapta +2/−1 soru; sadakat 0.96 → 0.92 düşüşü çoğunlukla üretim ve hakem gürültüsü (temperature 0'da 5 çağrının 4'ü farklı). Ayrıntı: §15 |
 
 ---
 

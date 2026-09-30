@@ -16,5 +16,6 @@ Türk bankacılık mevzuatı üzerinde, kaynak gösteren soru-cevap asistanı (R
 python src/ingest.py            # PDF → madde bazlı chunk'lar (data/chunks.jsonl)
 python src/embed_compare.py     # embedding modellerini eval setiyle karşılaştır
 python src/rag.py "soru"        # kaynak göstererek cevap (Groq; .env'de GROQ_API_KEY gerekir)
-python src/eval_answers.py v1   # 49 soruda atıf, reddetme ve sadakat ölçümü
+python src/eval_answers.py v2   # 49 soruda atıf, reddetme ve sadakat ölçümü
+python src/hybrid_compare.py    # dense / BM25 / hybrid / hybrid+filtre retrieval karşılaştırması
 ```

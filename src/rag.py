@@ -2,7 +2,8 @@
 
 Kullanım:
   python src/rag.py "Kartım çalındı, ne kadarından sorumluyum?"
-  python src/rag.py --model ollama:qwen3:4b "Kartım çalındı, ne kadarından sorumluyum?"
+  python src/rag.py --model ollama:qwen3:4b-instruct "Kartım çalındı, ne kadarından sorumluyum?"
+  python src/rag.py --retrieval dense "..."        → Hafta 1 davranışı (sadece embedding)
 
 Model adı "<servis>:<model>" biçiminde:
   groq:openai/gpt-oss-120b   → Groq bulut API (varsayılan)
@@ -21,6 +22,7 @@ from retriever import Retriever
 load_dotenv()
 
 DEFAULT_MODEL = "groq:openai/gpt-oss-120b"
+DEFAULT_RETRIEVAL = "hybrid"  # Hafta 2: dense + BM25 + madde filtresi (eski davranış: --retrieval dense)
 OLLAMA_URL = "http://localhost:11434/api/chat"
 TOP_K = 5
 MAX_CHARS_PER_ARTICLE = 2500  # çok uzun maddeleri kırp → token (ve kota) tasarrufu
@@ -90,8 +92,9 @@ def cited_ids(answer: str) -> list[str]:
 
 
 class RAG:
-    def __init__(self, model: str = DEFAULT_MODEL) -> None:
+    def __init__(self, model: str = DEFAULT_MODEL, retrieval: str = DEFAULT_RETRIEVAL) -> None:
         self.model = model
+        self.retrieval = retrieval  # "dense" veya "hybrid"
         self.provider, self.model_name = model.split(":", 1)
         self.retriever = Retriever()
         self.client = Groq(timeout=60)  # hakem de bunu kullanıyor
@@ -104,7 +107,7 @@ class RAG:
         raise ValueError(f"Bilinmeyen servis: {self.provider}")
 
     def answer(self, question: str) -> dict:
-        articles = self.retriever.search(question, k=TOP_K)
+        articles = self.retriever.search(question, k=TOP_K, mode=self.retrieval)
         messages = [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": f"MADDELER:\n{build_context(articles)}\n\nSORU: {question}"},
@@ -113,6 +116,7 @@ class RAG:
         return {
             "soru": question,
             "model": self.model,
+            "retrieval": self.retrieval,
             "cevap": text,
             "bulunan": [a["id"] for a in articles],
             "atiflar": cited_ids(text),
@@ -120,18 +124,20 @@ class RAG:
         }
 
 
-def pop_model_arg(argv: list[str]) -> tuple[str, list[str]]:
-    if "--model" in argv:
-        i = argv.index("--model")
+def pop_arg(argv: list[str], name: str, default: str) -> tuple[str, list[str]]:
+    """'--name deger' çiftini argüman listesinden çıkarır."""
+    if name in argv:
+        i = argv.index(name)
         return argv[i + 1], argv[:i] + argv[i + 2:]
-    return DEFAULT_MODEL, argv
+    return default, argv
 
 
 if __name__ == "__main__":
-    model, args = pop_model_arg(sys.argv[1:])
+    model, args = pop_arg(sys.argv[1:], "--model", DEFAULT_MODEL)
+    retrieval, args = pop_arg(args, "--retrieval", DEFAULT_RETRIEVAL)
     question = " ".join(args) or "Bankam ben istemeden kredi kartı limitimi artırabilir mi?"
-    r = RAG(model).answer(question)
-    print(f"\nSORU: {r['soru']}  ({r['model']})\n")
+    r = RAG(model, retrieval).answer(question)
+    print(f"\nSORU: {r['soru']}  ({r['model']}, {r['retrieval']})\n")
     print(r["cevap"])
     print(f"\nBulunan maddeler: {r['bulunan']}")
     print(f"Süre: {r['sure_sn']} sn · token: {r['girdi_token']} girdi + {r['cikti_token']} çıktı")

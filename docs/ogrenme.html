@@ -160,7 +160,7 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
 <div class="layout">
 <aside class="side">
   <nav class="toc" aria-label="İçindekiler">
-    <div class="group">Yaptıklarımız</div>
+    <div class="group">Hafta 1 · Temel RAG</div>
     <a href="#resim"><span>§0</span>Büyük resim</a>
     <a href="#adim1"><span>§1</span>Proje klasörü</a>
     <a href="#adim2"><span>§2</span>Sanal ortam (venv)</a>
@@ -176,6 +176,8 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
     <a href="#adim12"><span>§12</span>Git ve GitHub</a>
     <a href="#adim13"><span>§13</span>Lokal model: Ollama</a>
     <a href="#adim14"><span>§14</span>Büyük ve küçük model</a>
+    <div class="group">Hafta 2 · Daha iyi arama</div>
+    <a href="#adim15"><span>§15</span>Hybrid search</a>
     <div class="group">Kavramlar ve yöntemler</div>
     <a href="#k1"><span>K1</span>Dil modelleri</a>
     <a href="#k2"><span>K2</span>Anlamla arama</a>
@@ -184,9 +186,9 @@ footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line)
     <a href="#k5"><span>K5</span>Mühendislik</a>
     <a href="#k6"><span>K6</span>Sıradaki kavramlar</a>
     <div class="group">Başvuru</div>
-    <a href="#sozluk"><span>§15</span>Sözlük</a>
-    <a href="#test"><span>§16</span>Kendini test et</a>
-    <a href="#calistir"><span>§17</span>Kendin çalıştır</a>
+    <a href="#sozluk"><span>B1</span>Sözlük</a>
+    <a href="#test"><span>B2</span>Kendini test et</a>
+    <a href="#calistir"><span>B3</span>Kendin çalıştır</a>
     <a href="#sirada"><span>→</span>Sırada ne var</a>
   </nav>
 </aside>
@@ -723,6 +725,102 @@ Süre: 46.78 sn · token: 1864 girdi + 128 çıktı</code></pre>
   </div>
 </section>
 
+<!-- §15 -->
+<section id="adim15" class="step">
+  <div class="num">15</div>
+  <div class="body">
+    <h2>Hybrid search</h2>
+    <p>Hafta 1'deki hata analizinde en belirgin sorun, madde numarası soran sorulardı: “54. madde neyi düzenler?” sorusunda doğru madde 75. sıradaydı. Embedding anlamı yakalıyor ama “54”ü “22”den ayırmıyor. Bu hafta arama tarafına üç şey ekledik:</p>
+    <ol>
+      <li><b>BM25:</b> kelime eşleştirmeye dayalı klasik arama (<a href="#k-bm25">ayrıntı</a>).</li>
+      <li><b>RRF:</b> embedding ve BM25 sıralamalarını birleştirmek (<a href="#k-rrf">ayrıntı</a>).</li>
+      <li><b>Madde filtresi:</b> soruda madde numarası varsa o maddeyi doğrudan başa almak (<a href="#k-filtre">ayrıntı</a>).</li>
+    </ol>
+    <div class="tbl"><table>
+      <thead><tr><th>Dosya</th><th>Ne yapıyor</th></tr></thead>
+      <tbody>
+        <tr><td><code>src/hybrid.py</code></td><td>Türkçe tokenizer, BM25, RRF ve madde filtresi</td></tr>
+        <tr><td><code>src/hybrid_compare.py</code></td><td>5 yöntemi aynı 44 soruyla karşılaştırır, soru bazında sıraları gösterir</td></tr>
+        <tr><td><code>src/retriever.py</code></td><td><code>search(..., mode="hybrid")</code> seçeneği eklendi</td></tr>
+        <tr><td><code>src/rag.py</code></td><td><code>--retrieval dense|hybrid</code>. Varsayılan artık <b>hybrid</b>.</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>1. Retrieval sonuçları</h3>
+    <div class="tbl"><table>
+      <thead><tr><th>Yöntem</th><th class="n">Recall@1</th><th class="n">Recall@5</th><th class="n">MRR</th></tr></thead>
+      <tbody>
+        <tr><td>dense (bge-m3, Hafta 1)</td><td class="n">0.68</td><td class="n">0.89</td><td class="n">0.78</td></tr>
+        <tr><td>BM25, kelimeler olduğu gibi</td><td class="n">0.32</td><td class="n">0.64</td><td class="n">0.47</td></tr>
+        <tr><td>BM25, kök kesme (ilk 5 harf)</td><td class="n">0.52</td><td class="n">0.84</td><td class="n">0.67</td></tr>
+        <tr><td>hybrid (dense + BM25-kök, RRF)</td><td class="n">0.71</td><td class="n">0.89</td><td class="n">0.79</td></tr>
+        <tr class="best"><td>hybrid + madde filtresi</td><td class="n">0.75</td><td class="n">0.93</td><td class="n">0.83</td></tr>
+      </tbody>
+    </table></div>
+    <div class="bars" role="img" aria-label="Recall@5: dense 0.89, BM25 0.64, BM25 kök 0.84, hybrid 0.89, hybrid artı filtre 0.93">
+      <div class="eyebrow">Recall@5 · doğru madde ilk 5'te</div>
+      <div class="bar"><span>dense</span><div class="track"><div class="fill" style="width:88.6%"></div></div><span class="v">0.89</span></div>
+      <div class="bar"><span>BM25</span><div class="track"><div class="fill" style="width:63.6%"></div></div><span class="v">0.64</span></div>
+      <div class="bar"><span>BM25-kök</span><div class="track"><div class="fill" style="width:84.1%"></div></div><span class="v">0.84</span></div>
+      <div class="bar"><span>hybrid</span><div class="track"><div class="fill" style="width:88.6%"></div></div><span class="v">0.89</span></div>
+      <div class="bar"><span>+filtre</span><div class="track"><div class="fill" style="width:93.2%"></div></div><span class="v">0.93</span></div>
+      <div class="axis"><span></span><div><span>0</span><span>0.5</span><span>1.0</span></div><span></span></div>
+    </div>
+    <p>Okunacak üç şey:</p>
+    <ul>
+      <li><b>Kök kesme Türkçede kritik.</b> Aynı BM25, sadece kelimelerin ilk 5 harfini alınca 0.64'ten 0.84'e çıktı.</li>
+      <li><b>Hybrid tek başına R@5'i değiştirmedi.</b> “İptal” sorusunu 7.'den 1.'ye taşıdı, ama “faiz üst sınırı” sorusunu 2.'den 22.'ye düşürdü. Kanun “üst sınır” yerine “azami” diyor, BM25 onu 91. sıraya koymuş ve ortak sırayı aşağı çekmiş.</li>
+      <li><b>En büyük kazanç en basit kuraldan geldi.</b> Madde filtresi “22. madde” sorusunu 28.'den, “54. madde” sorusunu 75.'ten 1. sıraya taşıdı.</li>
+    </ul>
+    <p>BM25'in ağırlığını 1 → 0.3 arasında denedik. MRR 0.81–0.84 arasında oynadı. Bu fark 44 soruda tek bir sorunun kaymasından küçük olduğu için standart eşit ağırlıkta kaldık (<a href="#k-gurultu">neden?</a>).</p>
+
+    <h3>2. Cevap sonuçları: sürpriz</h3>
+    <p>Retrieval iyileşti, o halde cevaplar da iyileşmeli. 49 soruyu aynı model ve aynı hakemle tekrar ölçtük:</p>
+    <div class="tbl"><table>
+      <thead><tr><th>Metrik</th><th class="n">v1 · dense</th><th class="n">v2 · hybrid</th></tr></thead>
+      <tbody>
+        <tr><td>Cevabı elinde olan soru</td><td class="n">39</td><td class="n">41</td></tr>
+        <tr><td>Atıf isabeti</td><td class="n">0.97</td><td class="n">0.95</td></tr>
+        <tr><td>Sadakat (hakem)</td><td class="n">0.96</td><td class="n">0.92</td></tr>
+        <tr><td>Doğru reddetme</td><td class="n">0.90</td><td class="n">0.88</td></tr>
+        <tr><td>Ortalama süre</td><td class="n">2.9 sn</td><td class="n">2.1 sn</td></tr>
+      </tbody>
+    </table></div>
+    <p>Sadakat <b>düştü</b>. Hybrid cevapları kötüleştirdi mi? Skora bakıp karar vermek yerine değişen her soruyu tek tek inceledik:</p>
+    <div class="tbl"><table>
+      <thead><tr><th>Soru</th><th>Ne oldu</th><th>Sebep</th></tr></thead>
+      <tbody>
+        <tr><td>#31 “22. madde ne düzenliyor?”</td><td>Artık doğru madde ile doğru cevap</td><td><b>Hybrid kazancı</b></td></tr>
+        <tr><td>#44 “54. madde neyi düzenler?”</td><td>“Cevap yok” yerine doğru cevap</td><td><b>Hybrid kazancı</b></td></tr>
+        <tr><td>#40 “Ücret ve komisyonların üst sınırını kim belirler?”</td><td>Doğru madde 1.'den 5.'ye düştü, model üstteki maddelere dayanıp yanlış cevap verdi (“Kurul”; kanun “Merkez Bankası” diyor)</td><td><b>Hybrid kaybı</b></td></tr>
+        <tr><td>#4 “Ek kart limiti”</td><td>Bulunan maddeler <b>birebir aynı</b>, ama bu sefer model maddede olmayan bir ayrıntı ekledi</td><td>Üretim gürültüsü</td></tr>
+        <tr><td>#11 “Çalıntı kart sigortası”</td><td>Aynı maddeler, bu sefer “50.000 TL” uydurdu</td><td>Üretim gürültüsü</td></tr>
+        <tr><td>#31 (tekrar)</td><td>Cevap maddeyle birebir uyuşuyor, ama hakem “sadık değil” dedi</td><td>Hakem hatası</td></tr>
+        <tr><td>#10 “Kartım çalındı”</td><td>Hâlâ “50 TL” diyor, ama hakem bu sefer “sadık” dedi</td><td>Hakem hatası</td></tr>
+      </tbody>
+    </table></div>
+    <p>Hybrid'in gerçek etkisi: <b>2 soru kazanıldı, 1 soru kaybedildi</b>. Sadakat skorundaki düşüşün büyük kısmı hybrid'den değil, ölçümün kendi gürültüsünden geliyor.</p>
+
+    <h3>3. Gürültüyü doğrudan ölçtük</h3>
+    <p>“Aynı girdi, aynı çıktı” varsayımını test ettik. Ek kart sorusunu aynı 5 maddeyle, <code>temperature=0</code> ile 5 kez sorduk:</p>
+<pre><code>farklı cevap sayısı: 4 / 5
+ - Ek kart, asıl karta bağlı olarak ve asıl kartın belirlenen limitini aşmayacak şekilde düzenlenir; limit, asıl kart limitinin içinde kalacak ...
+ - Ek kart, asıl karta bağlı olarak ve asıl kartın belirlenen limitini aşmayacak şekilde düzenlenir; limit, asıl kart limitine göre belirlenir.
+ - ...
+aynı cevaba hakem kararları: [True, True, True, True, True]</code></pre>
+    <p>Model <code>temperature=0</code>'da bile her seferinde biraz farklı yazıyor. Sunucu tarafında isteklerin gruplanması gibi teknik sebeplerle hesaplar birebir aynı sırada yapılmıyor. Anlam çoğunlukla aynı kalıyor, ama arada bir çalıştırma maddede olmayan bir ayrıntı ekleyebiliyor. Hakem bu kolay örnekte tutarlıydı, ama tam ölçümde iki soruda yanıldı.</p>
+    <div class="note"><span class="lbl">Ders</span>
+      <p>Tek bir çalıştırmada 49 soruda 2 sorunun değişmesi (0.96 → 0.92) <b>anlamlı bir fark değil</b>. Cevap kalitesini güvenilir karşılaştırmak için: (1) her yapılandırmayı birkaç kez çalıştırıp ortalamaya bakmak, (2) hakemin kararlarını bir insan etiketi setiyle doğrulamak, (3) soru sayısını artırmak gerekiyor. Retrieval metrikleri ise deterministik: aynı girdi hep aynı sırayı verir. Bu yüzden arama tarafındaki kararları önce retrieval metrikleriyle veriyoruz.</p>
+    </div>
+    <div class="why"><span class="lbl">Karar</span>
+      <p><b>Hybrid + madde filtresi varsayılan oldu.</b> Retrieval'da net ve açıklanabilir bir kazanç var (R@5 0.89 → 0.93), cevap tarafında da gerçek değişim +2/−1. #40'taki gibi doğru maddenin aşağı itilmesi sorununu bir sonraki adımda <b>reranker</b> ile ele alacağız. Hafta 1 davranışı hâlâ <code>--retrieval dense</code> ile çalıştırılabilir.</p>
+    </div>
+    <div class="note"><span class="lbl">Mülakat cümlesi</span>
+      <p>“BM25'i Türkçe kök kesmeyle ekleyip RRF ile birleştirdim ve madde numarası için bir metadata filtresi koydum; Recall@5 0.89'dan 0.93'e çıktı. Cevap tarafında sadakat skoru düşmüş görünüyordu, ama soru bazında inceleyince düşüşün çoğunun LLM çıktısındaki ve hakemdeki gürültüden geldiğini gördüm: temperature 0'da bile aynı girdi 5 çağrının 4'ünde farklı metin üretti. Gerçek etki +2/−1 soruydu.”</p>
+    </div>
+  </div>
+</section>
+
 <!-- KAVRAMLAR -->
 <section id="kavramlar" class="stack part">
   <div class="eyebrow">Kavramlar ve yöntemler</div>
@@ -976,6 +1074,81 @@ Süre: 46.78 sn · token: 1864 girdi + 128 çıktı</code></pre>
       <p>Şimdilik vektör DB kullanmıyoruz; numpy ve diske kaydedilmiş bir dosya yetiyor. Gereksiz bir altyapı eklememek de mühendislik kararıdır. Hafta 2'de hybrid search için Qdrant'a geçeceğiz, çünkü sparse ve dense aramayı birlikte destekliyor.</p>
     </div>
   </article>
+
+  <article class="concept" id="k-bm25">
+    <h3>BM25 (kelime bazlı arama)</h3>
+    <p class="short">Sorudaki kelimelerin belgede kaç kez ve ne kadar “nadir” olarak geçtiğine bakan klasik arama formülü.</p>
+    <p>Google'dan önceki arama motorlarının ve bugün hâlâ Elasticsearch gibi sistemlerin temeli. Embedding'den farklı olarak <b>anlamı değil kelimeyi</b> eşleştirir. Bir belgenin puanı, sorudaki her kelime için üç şeye bakılarak toplanır:</p>
+    <ol>
+      <li><b>Kelime belgede geçiyor mu, kaç kez? (TF, term frequency)</b> Çok geçiyorsa puan artar, ama <b>doygunluğa</b> ulaşır: 20 kez geçmek 2 kez geçmekten 10 kat değerli değildir.</li>
+      <li><b>Kelime ne kadar nadir? (IDF, inverse document frequency)</b> “banka” kelimesi neredeyse her maddede geçtiği için az puan getirir; “zamanaşımı” sadece birkaç maddede geçtiği için çok puan getirir. Nadir kelime ayırt edicidir.</li>
+      <li><b>Belge ne kadar uzun?</b> Uzun belgeler şans eseri daha çok kelime içerir, bu yüzden uzunluğa göre biraz cezalandırılır.</li>
+    </ol>
+    <div class="tbl"><table>
+      <thead><tr><th></th><th>BM25 (sparse)</th><th>Embedding (dense)</th></tr></thead>
+      <tbody>
+        <tr><td>Neyi eşleştirir</td><td>Aynı kelimeyi</td><td>Benzer anlamı</td></tr>
+        <tr><td>Güçlü olduğu yer</td><td>Numaralar, özel adlar, kodlar, teknik terimler (“54. madde”, “TMSF”)</td><td>Eş anlamlılar, farklı ifadeler (“limit” ≈ “harcama sınırı”)</td></tr>
+        <tr><td>Zayıf olduğu yer</td><td>Farklı kelimeyle söylenen aynı şey</td><td>Tam eşleşme gereken yerler</td></tr>
+        <tr><td>Maliyet</td><td>Çok hızlı, model gerekmez</td><td>Model gerekir (bizde 11 dk indeksleme)</td></tr>
+      </tbody>
+    </table></div>
+    <div class="why"><span class="lbl">Bizim projede</span>
+      <p><code>rank-bm25</code> kütüphanesi ve <code>src/hybrid.py</code>. Tek başına BM25, dense aramadan belirgin şekilde kötü çıktı (R@5 0.64 ve 0.89). Ama dense'in kaçırdığı bazı soruları buldu: “kartımı iptal ettirmek” sorusunda dense doğru maddeyi 7. sıraya koydu, BM25 1. sıraya.</p>
+    </div>
+  </article>
+
+  <article class="concept" id="k-kok">
+    <h3>Türkçe için kök kesme (stemming)</h3>
+    <p class="short">Kelimelerin eklerini atıp köke yaklaşarak “kartım”, “kartın”, “kartı” gibi biçimleri aynı kelime saymak.</p>
+    <p>BM25 kelimeleri harfi harfine karşılaştırır. Türkçede aynı kelime onlarca farklı ekle gelir, bu yüzden kök kesme olmadan BM25 çok şey kaçırır. Gerçek örnek:</p>
+<pre><code>Soru:   kartım   çalındı   ...       Madde 12:  kartın   ...  çalınması  ...
+        ✗ eşleşme yok                          (ekler farklı)
+
+İlk 5 harf:
+Soru:   kartı    çalın     ...       Madde 12:  kartı    ...  çalın      ...
+        ✓ iki kelime eşleşti → doğru madde 88. sıradan 1. sıraya çıktı</code></pre>
+    <p>Kullandığımız yöntemin adı <b>truncation stemming</b>: her kelimenin ilk 5 harfini almak. Kaba ama Türkçe bilgi erişimi araştırmalarında şaşırtıcı derecede iyi çalıştığı gösterilmiş bir yöntem. Etkisi büyük oldu: BM25'in R@5'i <b>0.64'ten 0.84'e</b> çıktı.</p>
+    <p><b>Kusurları</b> da gerçek örneklerde görülüyor:</p>
+    <ul>
+      <li>“faiz<b>l</b>erinin” → <code>faizl</code>, ama “faiz” → <code>faiz</code>: aynı kelime eşleşmedi.</li>
+      <li>“kart<b>l</b>arı” → <code>kartl</code>, ama “kartın” → <code>kartı</code>: aynı kök ikiye bölündü.</li>
+      <li>“kay<b>b</b>ettiğimde” → <code>kaybe</code>, ama “kaybolması” → <code>kaybo</code>.</li>
+    </ul>
+    <p>Daha doğru yöntem gerçek bir <b>morfolojik çözümleyici</b> (Türkçe için Zemberek gibi) kullanıp kelimeyi köküne ayırmak. Daha doğru ama daha yavaş ve kurulumu daha zor. Önce basit yöntemi ölçtük; yeterince iyiyse karmaşıklık eklemeye gerek yok.</p>
+    <div class="note"><span class="lbl">Bir tuzak: Türkçe büyük/küçük harf</span>
+      <p>Python'da <code>"I".lower()</code> sonucu <code>"i"</code> olur, oysa Türkçede <code>"ı"</code> olmalı. “KARTIMI” küçültülünce “kartimi” olur ve “kartımı” ile eşleşmez. <code>tr_lower()</code> fonksiyonu önce I→ı ve İ→i dönüşümünü yapıyor.</p>
+    </div>
+  </article>
+
+  <article class="concept" id="k-rrf">
+    <h3>Hybrid search ve RRF</h3>
+    <p class="short">İki farklı arama yönteminin sıralamalarını tek bir sıralamada birleştirmek.</p>
+    <p>Dense ve BM25 farklı şeylerde iyi, o zaman ikisini birlikte kullanalım. Sorun şu: puanları karşılaştırılamaz. Cosine similarity 0–1 arasında, BM25 puanı 0–40 arasında olabilir. <b>Reciprocal Rank Fusion (RRF)</b> puanlara hiç bakmaz, sadece <b>sıralara</b> bakar:</p>
+    <div class="calc">RRF puanı = 1/(60 + dense'teki sıra) + 1/(60 + BM25'teki sıra)
+
+Madde A:  dense'te 1.,  BM25'te 91.  →  1/61 + 1/151 = 0.0164 + 0.0066 = 0.0230
+Madde B:  dense'te 3.,  BM25'te 2.   →  1/63 + 1/62  = 0.0159 + 0.0161 = 0.0320  ← kazanır</div>
+    <p>İki listede de üst sıralarda olan belge, sadece birinde birinci olan belgeyi geçer. 60 sabiti, ilk sıralar arasındaki farkı yumuşatır; araştırmalarda iyi çalıştığı gösterilmiş standart değerdir.</p>
+    <p><b>Riski:</b> Bir yöntem bir soruda çok kötüyse ortak sıralamayı aşağı çeker. Bizde “kredi kartı faizlerinin üst sınırını kim belirliyor?” sorusunda dense doğru maddeyi 2. buldu. Kanun “üst sınır” yerine “azami” dediği ve “faizlerinin” ile “faiz” eşleşmediği için BM25 onu 91. sıraya koydu. Birleşik sırada madde 22.'ye düştü.</p>
+    <div class="why"><span class="lbl">Bizim projede</span>
+      <p>Hybrid tek başına R@5'i değiştirmedi (0.886 ve 0.886): kazandırdığı ve kaybettirdiği sorular birbirini götürdü. R@1 ve MRR hafifçe arttı. Asıl kazanç, hybrid'in üstüne eklenen madde filtresinden geldi.</p>
+    </div>
+  </article>
+
+  <article class="concept" id="k-filtre">
+    <h3>Metadata filtresi ve sorgu yönlendirme</h3>
+    <p class="short">Sorunun yapısından çıkarılabilen bir bilgiyle (ör. madde numarası) aramayı doğrudan hedefe götürmek.</p>
+    <p>“5464 sayılı kanunun 22. maddesi” diye soran biri tam olarak neyi istediğini söylüyor. Burada anlam benzerliği aramak gereksiz: doğrudan o maddeyi getirmek yeterli. <code>madde_filter()</code> sorudaki madde numarasını ve kanunu bir regex ile yakalıyor, bulunan maddeyi sıralamanın en başına koyuyor, gerisini hybrid sırasında bırakıyor.</p>
+<pre><code>"Bankacılık Kanunu 54. madde neyi düzenler?"  → ['5411-m54']
+"5464 sayılı kanunun 22. maddesi ..."          → ['5464-m22']
+"Madde 9 ne diyor?"                             → ['5464-m9', '5411-m9']   (kanun belli değil: ikisi de)
+"Kartım çalındı"                                → []                        (filtre devreye girmez)</code></pre>
+    <p>Bu, <b>sorgu yönlendirme</b>nin (query routing) en basit hali: sorunun türüne göre farklı bir yol seçmek. Gerçek sistemlerde tarih aralığı, belge türü, müşteri segmenti gibi alanlarla filtreleme çok yaygındır. Vektör veritabanlarının filtreleme özelliği tam bu iş için var. Hafta 3'te bu kararı bir <b>agent</b>'a verdireceğiz.</p>
+    <div class="why"><span class="lbl">Bizim projede</span>
+      <p>İki numara sorusu da 1. sıraya çıktı; R@5 <b>0.886'dan 0.932'ye</b>. Sadece 2 soruyu etkileyen 30 satırlık bir kural, en büyük iyileştirme oldu. Ders: her sorunu model çözmek zorunda değil, bazen basit bir kural daha iyi.</p>
+    </div>
+  </article>
 </section>
 
 <!-- K3 -->
@@ -1133,6 +1306,21 @@ Süre: 46.78 sn · token: 1864 girdi + 128 çıktı</code></pre>
     </ul>
     <p><b>Yeniden puanlama (<code>--rescore</code>):</b> Ölçüm kodunu düzelttiğimizde LLM'e tekrar sormadık, kayıtlı cevapları yeniden puanladık. Üretim ile ölçümü ayırmak hem zaman hem kota kazandırır. Bu yüzden her deneyin ham çıktısı <code>eval/sonuclar/</code> altında saklanıyor.</p>
   </article>
+
+  <article class="concept" id="k-gurultu">
+    <h3>Küçük eval setinde gürültü ve overfitting</h3>
+    <p class="short">Az soruyla ölçülen küçük farklar şans olabilir; o sorulara bakarak ayar yapmak sistemi sete ezberletir.</p>
+    <p>44 soruluk sette tek bir soru, Recall@5'i <b>1/44 ≈ 0.023</b> oynatır. Yani 0.886 ile 0.909 arasındaki fark tek bir sorudur. Buna benzer farklar rastlantıyla da oluşabilir. Hybrid'de BM25 ağırlığını denediğimizde MRR 0.812 ile 0.838 arasında oynadı; bu tek soruluk farkların birkaçına eşit, yani gürültü seviyesinde.</p>
+    <p>Bu yüzden:</p>
+    <ul>
+      <li><b>Büyük değişikliklere güven, küçüklerine şüpheyle bak.</b> Madde filtresi (+0.046, iki soru ve nedeni açık) gerçek; ağırlık ayarı (±0.01) gürültü.</li>
+      <li><b>Sayı değişince hangi sorunun değiştiğine bak.</b> Soru bazındaki tablo bu yüzden var.</li>
+      <li><b>Aynı sete bakarak ince ayar yapma.</b> Ayar yaparken bakılan sorular (<i>geliştirme seti</i>) ile son kararı veren sorular (<i>test seti</i>) ayrılmalı. Yoksa 44 soruya özel bir sistem kurarsın; buna <b>overfitting</b> denir.</li>
+    </ul>
+    <div class="why"><span class="lbl">Bizim projede</span>
+      <p>RRF'de standart eşit ağırlıkta kaldık. Eval setini büyütmek ve ayrı bir test bölümü açmak Hafta 2'nin yapılacaklar listesinde.</p>
+    </div>
+  </article>
 </section>
 
 <!-- K5 -->
@@ -1250,9 +1438,6 @@ Süre: 46.78 sn · token: 1864 girdi + 128 çıktı</code></pre>
   <h2>Hafta 2 ve 3'te karşılaşacağımız kavramlar</h2>
   <p>Şimdilik kısa tanımlar. Kullandıkça bu bölüm ayrıntılanacak.</p>
   <dl class="gloss">
-    <dt>BM25</dt><dd>Klasik kelime eşleştirme araması. Bir kelime soruda ve belgede geçiyorsa, özellikle de nadir bir kelimeyse, yüksek puan verir. “54. madde” gibi tam eşleşmelerde embedding'den iyidir.</dd>
-    <dt>Hybrid search</dt><dd>BM25 (sparse) ve embedding (dense) aramayı birlikte çalıştırıp sonuçları birleştirmek.</dd>
-    <dt>RRF</dt><dd>Reciprocal Rank Fusion. İki farklı sıralamayı, her belgenin sıralardaki yerine göre (1/(60+sıra)) puanlayarak tek listede birleştiren basit ve güçlü yöntem.</dd>
     <dt>Reranker / cross-encoder</dt><dd>İlk aramanın getirdiği örneğin 20 belgeyi, soruyla <b>birlikte</b> okuyup yeniden sıralayan model. Embedding modeli (bi-encoder) soru ile belgeyi ayrı ayrı vektöre çevirir; cross-encoder ikisini yan yana okur. Daha isabetli ama daha yavaş, bu yüzden sadece ilk adayları sıralar.</dd>
     <dt>Query rewriting</dt><dd>Aramadan önce soruyu LLM'e “kanun diline” çevirtmek (“devlet güvencesi” → “mevduat sigortası, TMSF”).</dd>
     <dt>HyDE</dt><dd>LLM'e önce varsayımsal bir cevap yazdırıp, aramayı soruyla değil bu cevapla yapmak.</dd>
@@ -1262,9 +1447,9 @@ Süre: 46.78 sn · token: 1864 girdi + 128 çıktı</code></pre>
   </dl>
 </section>
 
-<!-- §15 -->
+<!-- B1 -->
 <section id="sozluk" class="stack">
-  <div class="eyebrow">§15</div>
+  <div class="eyebrow">B1 · Başvuru</div>
   <h2>Sözlük</h2>
   <p>Hızlı başvuru için tek satırlık tanımlar. Ayrıntılı açıklamalar <a href="#k1">Kavramlar ve yöntemler</a> bölümünde.</p>
   <dl class="gloss">
@@ -1305,13 +1490,20 @@ Süre: 46.78 sn · token: 1864 girdi + 128 çıktı</code></pre>
     <dt>Kontrollü deney</dt><dd>Tek bir şeyi değiştirip gerisini sabit tutarak farkın kaynağından emin olmak.</dd>
     <dt>Commit / push</dt><dd>Git'te bir kayıt oluşturmak / kayıtları GitHub'a göndermek.</dd>
     <dt>Checkpoint</dt><dd>Uzun bir işin ara kaydı; kesilirse kaldığı yerden devam edilir.</dd>
+    <dt>BM25</dt><dd>Kelime eşleştirmeye dayalı klasik arama puanı (kelime sıklığı × nadirlik).</dd>
+    <dt>Sparse / dense</dt><dd>Kelime bazlı (çoğu sıfır, seyrek) / anlam bazlı (tamamı dolu, yoğun) vektörler ve aramalar.</dd>
+    <dt>Stemming (kök kesme)</dt><dd>Ekleri atıp kelimeyi köküne yaklaştırmak; bizde ilk 5 harf.</dd>
+    <dt>Hybrid search</dt><dd>Kelime ve anlam aramalarını birleştirmek.</dd>
+    <dt>RRF</dt><dd>Sıralamaları 1/(60+sıra) puanlarıyla birleştiren yöntem.</dd>
+    <dt>Metadata filtresi</dt><dd>Belgelerin yapısal bilgisiyle (madde no, kanun) aramayı daraltmak.</dd>
+    <dt>Overfitting</dt><dd>Sistemi test sorularına özel ayarlayıp genel başarıyı yanlış yüksek görmek.</dd>
     <dt>Prompt injection</dt><dd>Kullanıcının soruya gizlediği talimatla modelin kurallarını deldirmeye çalışması.</dd>
   </dl>
 </section>
 
-<!-- §16 -->
+<!-- B2 -->
 <section id="test" class="stack">
-  <div class="eyebrow">§16</div>
+  <div class="eyebrow">B2 · Başvuru</div>
   <h2>Kendini test et</h2>
   <p>Önce kendi cümlenle cevapla, sonra aç.</p>
   <div>
@@ -1339,14 +1531,22 @@ Süre: 46.78 sn · token: 1864 girdi + 128 çıktı</code></pre>
       <p>Doğru maddeyi gösteriyor ama bazen içeriği ters çeviriyor (“şube açmak için izin gerekir”). Atıf doğru olunca kullanıcı cevaba daha çok güvenir. Atıf isabeti tek başına yetmez; sadakat ölçülmeli.</p></details>
     <details><summary>Neden iki modeli aynı hakem ve aynı bulunan maddelerle ölçtük?</summary>
       <p>Farkın gerçekten cevap modelinden geldiğini bilmek için. Hakem ya da retrieval da değişseydi hangi değişikliğin etkisini gördüğümüzü ayıramazdık.</p></details>
+    <details><summary>BM25'e Türkçede neden kök kesme gerekiyor?</summary>
+      <p>BM25 kelimeleri harfi harfine eşleştirir. Türkçede “kartım”, “kartın”, “kartı” farklı kelimeler sayılır. İlk 5 harfi almak bunları birleştiriyor; R@5 0.64'ten 0.84'e çıktı.</p></details>
+    <details><summary>RRF neden puanları değil sıraları birleştiriyor?</summary>
+      <p>Cosine similarity ve BM25 puanları farklı ölçeklerde, doğrudan toplanamazlar. Sıralar her yöntemde aynı anlamı taşır: 1. sıra en alakalı.</p></details>
+    <details><summary>Hybrid search neden tek başına R@5'i artırmadı?</summary>
+      <p>Bazı soruları düzeltti (“iptal” 7→1), bazılarını bozdu (“faiz üst sınırı” 2→22): BM25'in çok kötü olduğu sorularda ortak sırayı aşağı çekti. Kazançlar ve kayıplar birbirini götürdü.</p></details>
+    <details><summary>BM25 ağırlığını ayarlayıp 0.838 MRR bulduk; neden kullanmadık?</summary>
+      <p>Fark (0.825 → 0.838) 44 soruda tek bir sorunun kaymasından küçük, yani gürültü. Aynı sorulara bakarak ayar yapmak overfitting'e yol açar.</p></details>
     <details><summary>“Devlet güvencesi” sorusundaki hata neden en tehlikelisi?</summary>
       <p>Cevap kendinden emin ve kaynak gösteriyor, ama kaynak cevabı desteklemiyor. Kullanıcı sisteme güvenir. Doğruluğunu kontrol etmek isterse de alakasız bir madde görür. Açıkça “bilmiyorum” demek bundan çok daha iyidir.</p></details>
   </div>
 </section>
 
-<!-- §17 -->
+<!-- B3 -->
 <section id="calistir" class="stack">
-  <div class="eyebrow">§17</div>
+  <div class="eyebrow">B3 · Başvuru</div>
   <h2>Kendin çalıştır</h2>
   <p>PowerShell'de, proje klasöründe:</p>
 <pre><code>cd D:\Projects\banka-asistani
@@ -1365,14 +1565,19 @@ python src\embed_compare.py
 python src\rag.py "Adresim değişti, bankaya bildirmek için kaç günüm var?"
 
 <span class="c"># 5) 49 soruyu sor ve puanla (~10-15 dk, ücretsiz kota nedeniyle bekler)</span>
-python src\eval_answers.py v1
+python src\eval_answers.py v1 --retrieval dense      <span class="c"># Hafta 1 ayarı</span>
 
 <span class="c"># 6) LLM'e sormadan, kayıtlı cevapları yeniden puanla</span>
 python src\eval_answers.py v1 --rescore
 
 <span class="c"># 7) lokal model (Ollama açık olmalı): tek soru ve 49 soruluk ölçüm (~30 dk)</span>
 python src\rag.py --model ollama:qwen3:4b-instruct "Adresim değişti, kaç günüm var?"
-python src\eval_answers.py qwen3-4b --model ollama:qwen3:4b-instruct</code></pre>
+python src\eval_answers.py qwen3-4b --model ollama:qwen3:4b-instruct --retrieval dense
+
+<span class="c"># 8) Hafta 2: retrieval yöntemlerini karşılaştır ve hybrid ile cevap ver</span>
+python src\hybrid_compare.py
+python src\rag.py --retrieval hybrid "Bankacılık Kanunu 54. madde neyi düzenler?"
+python src\eval_answers.py v2-hybrid                  <span class="c"># hybrid artık varsayılan</span></code></pre>
   <div class="why"><span class="lbl">Kendi başına dene</span>
     <p><code>eval\retrieval_sorular.jsonl</code> dosyasına kendi sorunu ekle, e5-small ile çalıştır, bulup bulamadığına <code>eval\sonuclar\embedding_e5-small.json</code> içindeki <code>kacirilanlar</code> listesinden bak. Ya da <code>rag.py</code>'ye kendi sorunu sor ve cevabı kanunla karşılaştır: hakem modelin göremediği bir hata bulabilir misin?</p>
   </div>
@@ -1384,7 +1589,7 @@ python src\eval_answers.py qwen3-4b --model ollama:qwen3:4b-instruct</code></pre
   <p>Temel RAG hattı kuruldu, retrieval ve cevap kalitesi ölçüldü, bulut ve lokal model karşılaştırıldı, proje GitHub'da.</p>
   <h2>Hafta 2</h2>
   <ul>
-    <li>Hybrid search (BM25 + embedding) → madde numarası soruları.</li>
+    <li><s>Hybrid search (BM25 + embedding) → madde numarası soruları.</s> Yapıldı, §15.</li>
     <li>Query rewriting → “devlet güvencesi” gibi kelime uçurumu soruları.</li>
     <li>Reranker ve fıkra bazlı chunking → her birinin etkisini aynı eval setiyle ölçmek.</li>
     <li>Reddetme kararını regex yerine hakem modele vermek.</li>
